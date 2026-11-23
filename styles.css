@@ -421,3 +421,5 @@ input { font-size: 16px; }
 .card > .card-head h2 { white-space: nowrap; min-width: 0; font-size: clamp(1.3rem, 6.4vw, 1.75rem); }
 .card-head .date-field { flex: 0 1 auto; min-width: 0; }
 .card-head .date-field input { padding: 8px 8px; max-width: 100%; }
+.card-head .date-field { margin-left: auto; display: flex; justify-content: flex-end; }
+.card-head .date-field input { text-align: right; }
