@@ -223,6 +223,11 @@ Your saved entries are not touched by an update.
 
 ### Android (Chrome)
 
+It runs full screen with no address bar, but only if it's **installed**, not
+added as a shortcut. If you see an address bar, remove the icon and install it
+again as below. When you open it in Chrome, an **Install the app** box may
+appear at the top: tap **Install app**.
+
 1. Open the GitHub Pages address in **Chrome**.
 2. Tap the **⋮** menu at the top right.
 3. Tap **Install app** (on some phones it says **Add to Home screen**), then

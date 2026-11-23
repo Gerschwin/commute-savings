@@ -362,3 +362,5 @@ input { font-size: 16px; }
 .recalc-panel p { margin: 0; font-size: .95rem; }
 .recalc-panel .settings-actions { margin-top: 12px; }
 .set-recalc { margin-top: 14px; }
+.install-card { margin-top: 14px; border: 1.5px solid var(--accent); }
+.install-card p { margin: 0; }

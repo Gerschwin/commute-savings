@@ -942,6 +942,35 @@
     $('settings').hidden = true;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
+  // Install card: only in a browser tab, only when Chrome offers to install.
+  var installEvt = null;
+  function inApp() {
+    return ['fullscreen', 'standalone', 'minimal-ui'].some(function (m) {
+      return window.matchMedia && matchMedia('(display-mode: ' + m + ')').matches;
+    }) || navigator.standalone === true;
+  }
+  window.addEventListener('beforeinstallprompt', function (ev) {
+    ev.preventDefault();
+    installEvt = ev;
+    var snoozed = 0;
+    try { snoozed = Number(localStorage.getItem('cs.installSnooze')) || 0; } catch (e) {}
+    if (!inApp() && Date.now() > snoozed) $('installCard').hidden = false;
+  });
+  $('installGo').addEventListener('click', function () {
+    $('installCard').hidden = true;
+    if (!installEvt) return;
+    installEvt.prompt();
+    installEvt = null;
+  });
+  $('installNo').addEventListener('click', function () {
+    $('installCard').hidden = true;
+    try { localStorage.setItem('cs.installSnooze', String(Date.now() + 7 * 864e5)); } catch (e) {}
+  });
+  window.addEventListener('appinstalled', function () {
+    $('installCard').hidden = true;
+    toast('Installed. Open it from the new icon on your home screen.');
+  });
+
   // Theme: follow the phone (auto), or always dark / light. Per device.
   var THEMES = ['auto', 'dark', 'light'];
   var THEME_NAMES = { auto: 'Match phone', dark: 'Dark', light: 'Light' };
