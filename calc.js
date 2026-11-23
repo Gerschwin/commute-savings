@@ -27,6 +27,9 @@
     useFills: true,     // use real mpg and price from the fuel log when there is enough data
     odoUnit: 'mi',      // odometer unit for the fuel log ("mi" or "km")
     // exercise
+    monthStart: 'payday', // 'calendar', 'payday' (a date) or 'lastFri'
+    payDay: 28,           // payday date when monthStart is 'payday'
+    payWeekend: true,     // payday on a weekend moves to the Friday before
     homeLeg: 1.6,       // home to your station, each way (miles)
     workLeg: 0.8,       // Glasgow station to work, each way (miles); 0 if none
     walkMph: 3,         // usual walking pace
@@ -111,18 +114,57 @@
     return new Date(year, monthIndex + 1, 0).getDate();
   }
 
-  /* Totals for today, this week (Monday start), month, year, all time. */
-  function totals(entries, todayISO, includeWear) {
+
+  /* ---------- pay month ---------- */
+  /* Payday in a month, as an ISO date. */
+  function payday(year, monthIndex, s) {
+    var rule = s && s.monthStart;
+    if (rule === 'lastFri') {
+      var last = new Date(year, monthIndex + 1, 0);
+      last.setDate(last.getDate() - ((last.getDay() - 5 + 7) % 7));
+      return toISO(last);
+    }
+    if (rule !== 'payday') return toISO(new Date(year, monthIndex, 1));
+    var d = new Date(year, monthIndex, Math.min(Math.max(1, s.payDay || 1), daysInMonth(year, monthIndex)));
+    if (s.payWeekend) {
+      if (d.getDay() === 6) d.setDate(d.getDate() - 1);
+      else if (d.getDay() === 0) d.setDate(d.getDate() - 2);
+    }
+    return toISO(d);
+  }
+
+  /* The month containing a date: payday up to the day before the next one.
+     {start, end, days} with start and end inclusive ISO dates. */
+  function periodFor(dateISO, s) {
+    var d = parseISO(dateISO), y = d.getFullYear(), m = d.getMonth();
+    var p = payday(y, m, s), start, next;
+    if (dateISO >= p) { start = p; next = payday(m === 11 ? y + 1 : y, (m + 1) % 12, s); }
+    else { start = payday(m === 0 ? y - 1 : y, (m + 11) % 12, s); next = p; }
+    var e = parseISO(next); e.setDate(e.getDate() - 1);
+    var end = toISO(e);
+    var days = Math.round((parseISO(end) - parseISO(start)) / 864e5) + 1;
+    return { start: start, end: end, days: days };
+  }
+  function calendarPeriod(dateISO) {
+    return periodFor(dateISO, { monthStart: 'calendar' });
+  }
+  /* Day number (1-based) of a date within a period. */
+  function dayInPeriod(dateISO, p) {
+    return Math.round((parseISO(dateISO) - parseISO(p.start)) / 864e5) + 1;
+  }
+
+  /* Totals for today, this week (Monday start), month (calendar or pay month: period), year, all time. */
+  function totals(entries, todayISO, includeWear, period) {
     var t = { today: 0, week: 0, month: 0, year: 0, all: 0, trainDaysMonth: 0 };
     var weekStart = mondayOf(todayISO);
-    var month = todayISO.slice(0, 7);
+    var p = period || calendarPeriod(todayISO);
     var year = todayISO.slice(0, 4);
     var trainDates = {};
     entries.forEach(function (e) {
       var v = displayValue(e, includeWear);
       t.all += v;
       if (e.date.slice(0, 4) === year) t.year += v;
-      if (e.date.slice(0, 7) === month) {
+      if (e.date >= p.start && e.date <= p.end) {
         t.month += v;
         if (e.type === 'train' || e.type === 'station') trainDates[e.date] = true;
       }
@@ -132,6 +174,16 @@
     t.trainDaysMonth = Object.keys(trainDates).length;
     ['today', 'week', 'month', 'year', 'all'].forEach(function (k) { t[k] = round2(t[k]); });
     return t;
+  }
+
+  /* Cumulative savings per day of a period: array of length period.days. */
+  function cumulativeByPeriod(entries, p, includeWear) {
+    var daily = new Array(p.days).fill(0);
+    entries.forEach(function (e) {
+      if (e.date >= p.start && e.date <= p.end) daily[dayInPeriod(e.date, p) - 1] += displayValue(e, includeWear);
+    });
+    var run = 0;
+    return daily.map(function (v) { run += v; return round2(run); });
   }
 
   /* Cumulative savings per day of the month: array of length daysInMonth. */
@@ -515,22 +567,22 @@
   /* Exercise summary for the month of todayISO plus all time.
      records: [{date, kind, miles, steps, kcal}] */
   /* restDays: dates logged as No commute; like weekends they never break the streak. */
-  function exerciseTotals(records, todayISO, restDays) {
+  function exerciseTotals(records, todayISO, restDays, period) {
     restDays = restDays || {};
-    var month = todayISO.slice(0, 7);
+    var p = period || calendarPeriod(todayISO);
     var t = { walk: 0, cycle: 0, run: 0, miles: 0, steps: 0, kcal: 0, activeDays: 0, allMiles: 0, allKcal: 0, streak: 0 };
     var days = {};
     records.forEach(function (r) {
       t.allMiles += r.miles || 0;
       t.allKcal += r.kcal || 0;
       if (r.miles > 0 || r.steps > 0) days[r.date] = true;
-      if (r.date.slice(0, 7) !== month || r.date > todayISO) return;
+      if (r.date < p.start || r.date > p.end || r.date > todayISO) return;
       t[r.kind] = (t[r.kind] || 0) + (r.miles || 0);
       t.miles += r.miles || 0;
       t.steps += r.steps || 0;
       t.kcal += r.kcal || 0;
     });
-    Object.keys(days).forEach(function (d) { if (d.slice(0, 7) === month && d <= todayISO) t.activeDays++; });
+    Object.keys(days).forEach(function (d) { if (d >= p.start && d <= p.end && d <= todayISO) t.activeDays++; });
     // Streak: weekdays in a row with some exercise, counting back from today.
     // Weekends never break it but count if active. Today not done yet doesn't break it either.
     var d = parseISO(todayISO);
@@ -569,6 +621,11 @@
     if (!errors.stationMiles && !errors.commuteMiles && clean.stationMiles >= clean.commuteMiles) {
       errors.stationMiles = 'Must be less than the commute miles';
     }
+    clean.monthStart = ['calendar', 'payday', 'lastFri'].indexOf(raw.monthStart) >= 0 ? raw.monthStart : 'payday';
+    var pd = parseInt(raw.payDay, 10);
+    if (clean.monthStart === 'payday' && !(pd >= 1 && pd <= 31)) errors.payDay = 'Enter a date from 1 to 31';
+    else clean.payDay = pd >= 1 && pd <= 31 ? pd : 28;
+    clean.payWeekend = !!raw.payWeekend;
     clean.includeWear = !!raw.includeWear;
     clean.useFills = raw.useFills == null ? true : !!raw.useFills;
     clean.odoUnit = raw.odoUnit === 'km' ? 'km' : 'mi';
@@ -613,6 +670,10 @@
     daysInMonth: daysInMonth,
     totals: totals,
     cumulativeByDay: cumulativeByDay,
+    cumulativeByPeriod: cumulativeByPeriod,
+    payday: payday,
+    periodFor: periodFor,
+    dayInPeriod: dayInPeriod,
     money: money,
     shortDate: shortDate,
     toCSV: toCSV,

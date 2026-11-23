@@ -194,7 +194,7 @@
       <dl class="totals">
         <div><dt>Today</dt><dd id="tToday">£0.00</dd></div>
         <div><dt>This week</dt><dd id="tWeek">£0.00</dd></div>
-        <div><dt>This month</dt><dd id="tMonth">£0.00</dd></div>
+        <div><dt id="tMonthLabel">This month</dt><dd id="tMonth">£0.00</dd></div>
         <div><dt>This year</dt><dd id="tYear">£0.00</dd></div>
         <div class="span2"><dt>All time</dt><dd id="tAll">£0.00</dd></div>
       </dl>
@@ -301,6 +301,25 @@
           <label class="field"><span>Mpg on short station runs</span><input name="stationMpg" inputmode="decimal" autocomplete="off"><em class="error" data-err="stationMpg"></em></label>
           <label class="field"><span>Van wear (pence per mile)</span><input name="wearPence" inputmode="decimal" autocomplete="off"><em class="error" data-err="wearPence"></em></label>
           <label class="field"><span>Monthly target (£)</span><input name="target" inputmode="decimal" data-money autocomplete="off"><em class="error" data-err="target"></em></label>
+          <fieldset class="discount span-all pay-month">
+            <legend>Month runs from</legend>
+            <label class="field"><span>Month starts on</span>
+              <select name="monthStart" class="select">
+                <option value="payday">Payday (a date)</option>
+                <option value="lastFri">Last Friday of the month</option>
+                <option value="calendar">The 1st (calendar month)</option>
+              </select>
+            </label>
+            <div id="payDayBox">
+              <label class="field"><span>Payday date</span><input name="payDay" inputmode="numeric" autocomplete="off" placeholder="28"><em class="error" data-err="payDay"></em></label>
+              <label class="toggle">
+                <input type="checkbox" name="payWeekend" role="switch">
+                <span class="toggle-track" aria-hidden="true"></span>
+                <span>Weekend payday moves to the Friday before</span>
+              </label>
+            </div>
+            <p class="hint" id="payHint"></p>
+          </fieldset>
         </div>
         <h3 class="settings-sub">Exercise</h3>
         <div class="settings-grid">

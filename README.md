@@ -115,6 +115,20 @@ km/L, use **Dashboard shows km/L?** to convert.
 
 Fill-ups and exercise are included in the JSON backup.
 
+## Pay month
+
+The monthly total, target, chart, train day count and exercise all run over
+a **pay month**: from payday to the day before the next payday. Set it in
+Settings under **Month runs from**:
+
+* **Payday (a date)**: 28th by default. With **Weekend payday moves to the
+  Friday before** on, a Saturday or Sunday 28th becomes the Friday.
+* **Last Friday of the month**
+* **The 1st**: ordinary calendar months.
+
+Bank holidays aren't allowed for. If payday moves for one, the day falls in
+the month before. The week and year totals stay as calendar week and year.
+
 ## Exercise
 
 Your commute exercise is logged automatically when you log a train day. In

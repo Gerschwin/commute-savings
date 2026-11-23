@@ -407,4 +407,40 @@ test('phone steps add only the extra, at an easy pace', () => {
   assert.ok(C.phoneWalk(5000, 0, C.DEFAULTS).miles > 2);
 });
 
+test('payday: 28th, or the Friday before at a weekend', () => {
+  const s = { monthStart: 'payday', payDay: 28, payWeekend: true };
+  assert.strictEqual(C.payday(2026, 10, s), '2026-11-27'); // Sat 28 Nov 2026 -> Fri 27
+  assert.strictEqual(C.payday(2026, 11, s), '2026-12-28'); // Mon 28 Dec
+  assert.strictEqual(C.payday(2027, 1, s), '2027-02-26');  // Sun 28 Feb 2027 -> Fri 26
+  assert.strictEqual(C.payday(2026, 10, Object.assign({}, s, { payWeekend: false })), '2026-11-28');
+  assert.strictEqual(C.payday(2026, 10, { monthStart: 'lastFri' }), '2026-11-27');
+  assert.strictEqual(C.payday(2026, 11, { monthStart: 'lastFri' }), '2026-12-25');
+  assert.strictEqual(C.payday(2026, 10, { monthStart: 'calendar' }), '2026-11-01');
+});
+
+test('pay month runs from payday to the day before the next', () => {
+  const s = { monthStart: 'payday', payDay: 28, payWeekend: true };
+  assert.deepStrictEqual(C.periodFor('2026-11-23', s), { start: '2026-10-28', end: '2026-11-26', days: 30 });
+  assert.deepStrictEqual(C.periodFor('2026-11-27', s), { start: '2026-11-27', end: '2026-12-27', days: 31 });
+  assert.deepStrictEqual(C.periodFor('2027-01-10', s), { start: '2026-12-28', end: '2027-01-27', days: 31 });
+  assert.deepStrictEqual(C.periodFor('2026-11-23', { monthStart: 'calendar' }), { start: '2026-11-01', end: '2026-11-30', days: 30 });
+});
+
+test('totals and chart use the pay month', () => {
+  const s = { monthStart: 'payday', payDay: 28, payWeekend: true };
+  const p = C.periodFor('2026-11-23', s);
+  const entries = [
+    { date: '2026-10-27', type: 'train', fuel: 1 },  // before pay month
+    { date: '2026-10-29', type: 'train', fuel: 2 },  // in (previous calendar month)
+    { date: '2026-11-20', type: 'train', fuel: 3 }
+  ];
+  const t = C.totals(entries, '2026-11-23', false, p);
+  assert.strictEqual(t.month, 5);
+  assert.strictEqual(t.trainDaysMonth, 2);
+  const cum = C.cumulativeByPeriod(entries, p, false);
+  assert.strictEqual(cum.length, 30);
+  assert.strictEqual(cum[1], 2);   // 29 Oct is day 2
+  assert.strictEqual(cum[29], 5);
+});
+
 console.log('\n' + passed + ' passed' + (process.exitCode ? ', some FAILED' : ''));

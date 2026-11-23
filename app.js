@@ -331,15 +331,24 @@
     return isFinite(v) ? C.round2(v) : NaN;
   }
 
+  /* The month the totals use: calendar month or pay month, per Settings. */
+  function payPeriod(dateISO) { return C.periodFor(dateISO || todayISO(), state.settings); }
+  var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function dm(iso) { return Number(iso.slice(8, 10)) + ' ' + MON[Number(iso.slice(5, 7)) - 1]; }
+
   /* ================= rendering ================= */
   function render() {
     var s = state.settings;
     var today = todayISO();
-    var t = C.totals(state.entries, today, s.includeWear);
+    var p = payPeriod();
+    var t = C.totals(state.entries, today, s.includeWear, p);
     var now = C.parseISO(today);
 
     // hero
-    $('monthName').textContent = now.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    $('monthName').textContent = s.monthStart === 'calendar'
+      ? now.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+      : dm(p.start) + ' to ' + dm(p.end);
+    $('heroLabel').textContent = s.monthStart === 'calendar' ? 'saved this month' : 'saved this pay month';
     $('heroAmount').textContent = C.money(t.month);
     $('heroDays').textContent = t.trainDaysMonth + (t.trainDaysMonth === 1 ? ' train day' : ' train days');
 
@@ -382,6 +391,7 @@
     $('tToday').textContent = C.money(t.today);
     $('tWeek').textContent = C.money(t.week);
     $('tMonth').textContent = C.money(t.month);
+    $('tMonthLabel').textContent = s.monthStart === 'calendar' ? 'This month' : 'This pay month';
     $('tYear').textContent = C.money(t.year);
     $('tAll').textContent = C.money(t.all);
     $('wearHint').textContent = s.includeWear ? 'Totals include van wear.' : 'Fuel savings only. Van wear can be added in Settings.';
@@ -441,11 +451,11 @@
     var W = Math.max(200, Math.floor(box.clientWidth));
     var H = Math.max(120, Math.floor(box.clientHeight));
     var today = todayISO();
-    var d = C.parseISO(today);
-    var y = d.getFullYear(), m = d.getMonth();
-    var days = C.daysInMonth(y, m);
-    var todayIdx = d.getDate(); // 1-based
-    var cum = C.cumulativeByDay(state.entries, y, m, state.settings.includeWear);
+    var p = payPeriod(today);
+    var days = p.days;
+    var todayIdx = C.dayInPeriod(today, p); // 1-based
+    var cum = C.cumulativeByPeriod(state.entries, p, state.settings.includeWear);
+    var dateOf = function (i) { var x = C.parseISO(p.start); x.setDate(x.getDate() + i - 1); return x.getDate(); };
     var target = state.settings.target;
     var maxVal = Math.max(target * 1.15, Math.max.apply(null, cum.concat([0])) * 1.1, 1);
     var minVal = Math.min(0, Math.min.apply(null, cum));
@@ -494,7 +504,7 @@
       });
       if (k === 0) tx.setAttribute('x', X(0));
       if (k === ticks.length - 1) tx.setAttribute('x', X(days));
-      tx.textContent = String(day);
+      tx.textContent = String(dateOf(day));
       root.appendChild(tx);
     });
 
@@ -609,7 +619,8 @@
 
   function changeSummary(changes) {
     var inc = state.settings.includeWear, today = todayISO();
-    var before = C.totals(state.entries, today, inc), after = C.totals(withChanges(state.entries, changes), today, inc);
+    var p = payPeriod(today);
+    var before = C.totals(state.entries, today, inc, p), after = C.totals(withChanges(state.entries, changes), today, inc, p);
     var text = '';
     if (before.month !== after.month) text += 'This month: ' + C.money(before.month) + ' becomes ' + C.money(after.month) + '. ';
     if (before.all !== before.month || after.all !== after.month) {
@@ -787,7 +798,7 @@
     var list = allExercise();
     var rest = {};
     state.entries.forEach(function (e) { if (e.type === 'off') rest[e.date] = true; });
-    var t = C.exerciseTotals(list, todayISO(), rest);
+    var t = C.exerciseTotals(list, todayISO(), rest, payPeriod());
     var noBody = !(s.weightKg > 0) || !(s.heightCm > 0);
     $('exProfileHint').hidden = !noBody;
     $('exWalk').innerHTML = (t.walk + t.run) + '<small>mi</small>';
@@ -972,6 +983,9 @@
     form.elements.discountOn.checked = !!s.discountOn;
     form.elements.discountCode.value = s.discountCode || '';
     form.elements.discountEnds.value = s.discountEnds || '';
+    form.elements.monthStart.value = s.monthStart || 'payday';
+    form.elements.payDay.value = String(s.payDay || 28);
+    form.elements.payWeekend.checked = !!s.payWeekend;
     form.elements.weightUnit.value = s.weightUnit || 'st';
     form.elements.weightKg.value = C.formatWeight(s.weightKg, s.weightUnit);
     form.elements.heightCm.value = s.heightCm ? C.formatHeight(s.heightCm) : '';
@@ -982,7 +996,7 @@
 
   function clearSettingsErrors() {
     form.querySelectorAll('[data-err]').forEach(function (n) { n.textContent = ''; });
-    C.FIELDS.concat(C.OPTIONAL, ['weightKg', 'heightCm']).forEach(function (k) { form.elements[k].removeAttribute('aria-invalid'); });
+    C.FIELDS.concat(C.OPTIONAL, ['weightKg', 'heightCm', 'payDay']).forEach(function (k) { form.elements[k].removeAttribute('aria-invalid'); });
   }
 
   function readSettingsForm() {
@@ -994,6 +1008,9 @@
     raw.discountOn = form.elements.discountOn.checked;
     raw.discountCode = form.elements.discountCode.value;
     raw.discountEnds = form.elements.discountEnds.value;
+    raw.monthStart = form.elements.monthStart.value;
+    raw.payDay = form.elements.payDay.value;
+    raw.payWeekend = form.elements.payWeekend.checked;
     raw.weightUnit = form.elements.weightUnit.value;
     var w = C.parseWeight(form.elements.weightKg.value, raw.weightUnit);
     var h = C.parseHeight(form.elements.heightCm.value);
@@ -1027,6 +1044,13 @@
     var r = readSettingsForm();
     var p = $('settingsPreview');
     $('legHint').textContent = r.ok ? legText(r.settings) : '';
+    $('payDayBox').hidden = form.elements.monthStart.value !== 'payday';
+    if (r.ok) {
+      var pp = C.periodFor(todayISO(), r.settings);
+      var nx = new Date(C.parseISO(pp.end)); nx.setDate(nx.getDate() + 1);
+      $('payHint').textContent = r.settings.monthStart === 'calendar' ? 'Totals run from the 1st to the end of each month.'
+        : 'This pay month: ' + dm(pp.start) + ' to ' + dm(pp.end) + '. Next starts ' + dm(C.toISO(nx)) + '.';
+    } else $('payHint').textContent = '';
     if (!r.ok) { p.textContent = ''; return; }
     var eff = C.effectiveSettings(r.settings, state.stats, null, todayISO());
     var a = C.entrySaving('train', eff), b = C.entrySaving('station', eff);
