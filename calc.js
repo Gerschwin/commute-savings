@@ -12,12 +12,15 @@
     price: 1.59,        // petrol £ per litre
     mpg: 22,            // van mpg (UK gallons)
     commuteMiles: 34,   // commute round trip
-    fare: 5.5,          // train return fare £
+    fare: 6.1,          // ScotRail Airdrie–Glasgow Queen Street return, from £6.10 (Nov 2026)
+    single: 5.5,        // Anytime Day Single, Airdrie–Glasgow Queen Street (Nov 2026)
     stationMiles: 3.6,  // drive-to-station round trip
     stationMpg: 15,     // mpg on short cold station runs
     wearPence: 10,      // van wear pence per mile
     target: 90,         // monthly target £
-    includeWear: false
+    includeWear: false,
+    useFills: true,     // use real mpg and price from the fuel log when there is enough data
+    odoUnit: 'mi'       // odometer unit for the fuel log ("mi" or "km")
   });
 
   function round2(n) {
@@ -205,10 +208,85 @@
     return { entries: out, skipped: skipped };
   }
 
+  /* ---------- real fuel figures from fill-ups ---------- */
+  var KM_PER_MILE = 1.609344;
+  var MPG_PER_KMPL = 2.824809; // UK mpg = km/L × 4.546 ÷ 1.609344
+
+  function kmplToMpg(kmpl) { return kmpl * MPG_PER_KMPL; }
+
+  /* A fill: {date, odo, litres, cost, full}. odo is in odoUnit ("mi" or "km").
+     Real mpg uses the full-to-full method: miles between two full tanks
+     divided by all the fuel added after the first one, up to and including the second.
+     Averages the most recent `window` intervals (default 5), weighted by fuel. */
+  function fillStats(fills, odoUnit, window) {
+    window = window || 5;
+    var toMiles = odoUnit === 'km' ? 1 / KM_PER_MILE : 1;
+    var sorted = fills.slice().filter(function (f) { return f.odo > 0 && f.litres > 0; })
+      .sort(function (a, b) { return a.odo - b.odo || (a.date < b.date ? -1 : 1); });
+    var intervals = [];
+    var lastFull = null, litresSince = 0;
+    sorted.forEach(function (f) {
+      if (lastFull) litresSince += f.litres;
+      if (f.full) {
+        if (lastFull && f.odo > lastFull.odo) {
+          var miles = (f.odo - lastFull.odo) * toMiles;
+          intervals.push({ from: lastFull.date, to: f.date, miles: miles, litres: litresSince, mpg: miles / (litresSince / LITRES_PER_GALLON) });
+        }
+        lastFull = f;
+        litresSince = 0;
+      }
+    });
+    var recent = intervals.slice(-window);
+    var miles = 0, litres = 0;
+    recent.forEach(function (iv) { miles += iv.miles; litres += iv.litres; });
+    var byDate = fills.slice().filter(function (f) { return f.litres > 0 && f.cost > 0; })
+      .sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (b.ts || 0) - (a.ts || 0); });
+    var latest = byDate[0];
+    return {
+      intervals: intervals,
+      used: recent.length,
+      mpg: litres > 0 ? miles / (litres / LITRES_PER_GALLON) : null,
+      lastMpg: intervals.length ? intervals[intervals.length - 1].mpg : null,
+      price: latest ? latest.cost / latest.litres : null,
+      priceDate: latest ? latest.date : null
+    };
+  }
+
+  /* The settings a new entry is calculated with: saved settings, real
+     fill-up figures if switched on and available, and the fare paid today. */
+  function effectiveSettings(settings, stats, farePaid) {
+    var s = Object.assign({}, settings);
+    var src = { mpg: 'settings', price: 'settings' };
+    if (settings.useFills && stats) {
+      if (stats.mpg) { s.mpg = stats.mpg; src.mpg = 'fills'; }
+      if (stats.price) { s.price = stats.price; src.price = 'fills'; }
+    }
+    if (farePaid != null && isFinite(farePaid) && farePaid >= 0) s.fare = farePaid;
+    s.source = src;
+    return s;
+  }
+
+  function validateFill(raw) {
+    var errors = {};
+    var num = function (v) { return parseFloat(String(v == null ? '' : v).replace(/[£,\s]/g, '')); };
+    var f = { date: raw.date, odo: num(raw.odo), litres: num(raw.litres), cost: num(raw.cost), full: !!raw.full };
+    if (!isISODate(f.date)) errors.date = 'Pick a date';
+    if (!isFinite(f.odo) || f.odo <= 0) errors.odo = 'Enter the odometer reading';
+    if (!isFinite(f.litres) || f.litres <= 0 || f.litres > 200) errors.litres = 'Enter litres added';
+    if (!isFinite(f.cost) || f.cost <= 0) errors.cost = 'Enter what you paid';
+    if (!errors.litres && !errors.cost) {
+      var ppl = f.cost / f.litres;
+      if (ppl < 0.5 || ppl > 4) errors.cost = 'That is ' + money(ppl) + ' a litre, check the figures';
+    }
+    return { ok: Object.keys(errors).length === 0, errors: errors, fill: f };
+  }
+
   /* ---------- settings validation ---------- */
-  var FIELDS = ['price', 'mpg', 'commuteMiles', 'fare', 'stationMiles', 'stationMpg', 'wearPence', 'target'];
+  var FIELDS = ['price', 'mpg', 'commuteMiles', 'fare', 'single', 'stationMiles', 'stationMpg', 'wearPence', 'target'];
 
   function validateSettings(raw) {
+    // Settings saved by an older version may lack newer fields: fill them from the defaults.
+    raw = Object.assign({}, DEFAULTS, raw || {});
     var errors = {}, clean = {};
     FIELDS.forEach(function (k) {
       var v = typeof raw[k] === 'number' ? raw[k] : parseFloat(String(raw[k] == null ? '' : raw[k]).trim());
@@ -219,6 +297,8 @@
       errors.stationMiles = 'Must be less than the commute miles';
     }
     clean.includeWear = !!raw.includeWear;
+    clean.useFills = raw.useFills == null ? true : !!raw.useFills;
+    clean.odoUnit = raw.odoUnit === 'km' ? 'km' : 'mi';
     return { ok: Object.keys(errors).length === 0, errors: errors, settings: clean };
   }
 
@@ -245,6 +325,10 @@
     toCSV: toCSV,
     parseCSV: parseCSV,
     entriesFromCSV: entriesFromCSV,
-    validateSettings: validateSettings
+    validateSettings: validateSettings,
+    kmplToMpg: kmplToMpg,
+    fillStats: fillStats,
+    effectiveSettings: effectiveSettings,
+    validateFill: validateFill
   };
 });

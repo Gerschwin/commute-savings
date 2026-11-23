@@ -256,3 +256,44 @@ input { font-size: 16px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+/* ---------- real data additions ---------- */
+.field > label { font-size: .85rem; font-weight: 600; color: var(--muted); }
+.fare-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 14px; margin-bottom: 12px; }
+.fare-field { flex: 0 0 150px; }
+.basis { flex: 1 1 160px; margin: 0; font-size: .85rem; color: var(--muted); line-height: 1.35; }
+.hint.top { margin: 0 0 12px; }
+
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0; }
+.stats > div { background: var(--bg); border-radius: 14px; padding: 10px 12px; min-width: 0; }
+.stats dt { font-size: .8rem; font-weight: 600; color: var(--muted); }
+.stats dd { margin: 2px 0 0; font-family: var(--font-num); font-weight: 800; font-size: 1.7rem; line-height: 1.05; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.fill-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.fill-form .span2, .fill-form .odo-field { grid-column: span 2; }
+.odo-row { display: flex; gap: 8px; }
+.odo-row input { flex: 1 1 auto; min-width: 0; }
+.odo-row select {
+  flex: 0 0 auto; min-height: 48px; padding: 0 10px; font-size: 16px;
+  border: 1.5px solid var(--line); border-radius: 12px; background: var(--bg);
+}
+.check { display: flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 600; cursor: pointer; }
+.check input { width: 22px; height: 22px; accent-color: var(--accent); }
+.fill-form .hint { margin: 0; }
+.fills { margin-top: 12px; }
+.sub { display: block; font-size: .82rem; color: var(--muted); }
+
+.helper { margin-top: 4px; }
+.helper summary { cursor: pointer; font-size: .85rem; font-weight: 600; color: var(--accent-text); min-height: 32px; display: flex; align-items: center; }
+.helper-row { display: flex; gap: 8px; margin-top: 6px; }
+.helper-row input {
+  flex: 1 1 0; min-width: 0; min-height: 44px; padding: 8px 10px; border-radius: 12px;
+  border: 1.5px solid var(--line); background: var(--bg);
+}
+.helper .hint { margin-top: 6px; }
+.fare-row .fare-field { flex: 1 1 100%; }
+.fare-chips { display: flex; gap: 8px; flex: 1 1 100%; }
+.fare-chips .chip { flex: 1 1 0; text-align: center; }
+.chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.fare-row .basis { flex-basis: 100%; }
+.amt.plain { color: var(--text); }

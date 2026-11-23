@@ -34,14 +34,51 @@ at the moment you logged it. Changing a setting later never rewrites old days.
 The figure shown is the fuel saving, plus the wear saving if "Include van wear
 in totals" is switched on.
 
-With the default settings:
+With the brief's original figures (22 mpg, £1.59 a litre, £5.50 fare):
 
 * Walked or cycled: £5.67 fuel saving (plus £3.40 wear)
 * Drove to station: £3.94 fuel saving (plus £3.04 wear)
 
+The default fare is now the real ScotRail day return, £6.10 (Nov 2026), which
+gives £5.07 and £3.34. £5.50 turned out to be the Anytime Day Single.
+
 Note: the original brief said the drove-to-station day comes to about £3.97.
 Using the formula above, it is £5.671 − £1.735 = £3.936, so £3.94. The tests
 check £3.94.
+
+## Real figures
+
+### Ticket cost
+
+**Log a day** has a "Ticket cost today, both ways" box. Leave it blank to use
+your usual return fare, or tap **Day return** or **2 singles** (single fare ×
+2), or type what you actually paid. Each day stores the fare it used, so the
+log shows it.
+
+Season ticket or Flexipass? In Settings, under the usual fare, open **Season
+ticket or Flexipass?**, enter the price and how many days you'll travel on it,
+and it works out a per-day cost.
+
+### Fuel log (real mpg and petrol price)
+
+Each time you fill up, add the date, odometer reading, litres and what you
+paid. Tick **Filled to full** if you brimmed it.
+
+* **Petrol price** comes from your latest fill (paid ÷ litres).
+* **Real mpg** uses the full-to-full method: the miles between two full tanks,
+  divided by all the fuel you put in since the first of them (top-ups
+  included). It averages your last five tanks, so one odd week doesn't swing
+  it. You need two full fills before it shows.
+* If your odometer is in km (common on Japanese imports), switch the unit
+  next to the odometer box. It converts to miles for you.
+* While **Use these for new train days** is on, new train days are worked out
+  with your real mpg and price. Switch it off to use the Settings figures.
+  Old days never change.
+
+If you'd rather type the trip computer figure, put it in Settings. If it shows
+km/L, use **Dashboard shows km/L?** to convert.
+
+Fill-ups are included in the JSON backup.
 
 ## Run the tests
 

@@ -3,7 +3,8 @@
 const assert = require('assert');
 const C = require('./calc.js');
 
-const D = C.DEFAULTS;
+// The brief's worked examples used a £5.50 fare; the default is now the real £6.10.
+const D = Object.assign({}, C.DEFAULTS, { fare: 5.5 });
 let passed = 0;
 function test(name, fn) {
   try { fn(); passed++; console.log('ok   ' + name); }
@@ -105,6 +106,77 @@ test('settings validation rejects zero, negative and blank', () => {
   assert.strictEqual(r.ok, false);
   assert.ok(r.errors.mpg && r.errors.fare && r.errors.price);
   assert.strictEqual(C.validateSettings(D).ok, true);
+});
+
+test('with the real £6.10 fare: walked £5.07, drove to station £3.34', () => {
+  assert.strictEqual(C.DEFAULTS.fare, 6.1);
+  assert.strictEqual(C.entrySaving('train', C.DEFAULTS).fuel, 5.07);
+  assert.strictEqual(C.entrySaving('station', C.DEFAULTS).fuel, 3.34);
+});
+
+test('km/L converts to UK mpg', () => {
+  assert.strictEqual(C.round2(C.kmplToMpg(10)), 28.25);
+});
+
+test('real mpg uses full-to-full fills and counts partial top-ups', () => {
+  const fills = [
+    { date: '2026-11-01', odo: 10000, litres: 50, cost: 79.5, full: true },
+    { date: '2026-11-08', odo: 10150, litres: 20, cost: 32, full: false },  // top-up
+    { date: '2026-11-15', odo: 10300, litres: 40, cost: 64.4, full: true }, // 300 mi on 60 L
+    { date: '2026-11-22', odo: 10520, litres: 44, cost: 68.2, full: true }  // 220 mi on 44 L
+  ];
+  const s = C.fillStats(fills, 'mi');
+  assert.strictEqual(s.intervals.length, 2);
+  assert.strictEqual(C.round2(s.intervals[0].mpg), 22.73); // 300 / (60 / 4.546)
+  assert.strictEqual(C.round2(s.intervals[1].mpg), 22.73); // 220 / (44 / 4.546)
+  assert.strictEqual(C.round2(s.mpg), 22.73);
+  assert.strictEqual(C.round2(s.price), 1.55);              // latest fill 68.20 / 44
+  assert.strictEqual(s.priceDate, '2026-11-22');
+});
+
+test('km odometer is converted to miles', () => {
+  const s = C.fillStats([
+    { date: '2026-11-01', odo: 100000, litres: 40, cost: 60, full: true },
+    { date: '2026-11-10', odo: 100500, litres: 50, cost: 75, full: true }
+  ], 'km');
+  assert.strictEqual(C.round2(s.mpg), 28.25); // 500 km on 50 L = 10 km/L
+});
+
+test('one fill gives a price but no mpg yet', () => {
+  const s = C.fillStats([{ date: '2026-11-01', odo: 1, litres: 40, cost: 63.6, full: true }], 'mi');
+  assert.strictEqual(s.mpg, null);
+  assert.strictEqual(C.round2(s.price), 1.59);
+});
+
+test('effective settings use real figures only when switched on', () => {
+  const stats = { mpg: 25, price: 1.45 };
+  const on = C.effectiveSettings(Object.assign({}, D, { useFills: true }), stats, 6.1);
+  assert.strictEqual(on.mpg, 25); assert.strictEqual(on.price, 1.45); assert.strictEqual(on.fare, 6.1);
+  assert.strictEqual(on.source.mpg, 'fills');
+  const off = C.effectiveSettings(Object.assign({}, D, { useFills: false }), stats, null);
+  assert.strictEqual(off.mpg, 22); assert.strictEqual(off.fare, 5.5);
+  const none = C.effectiveSettings(Object.assign({}, D, { useFills: true }), { mpg: null, price: 1.5 }, null);
+  assert.strictEqual(none.mpg, 22); assert.strictEqual(none.price, 1.5);
+});
+
+test('fill validation catches silly prices', () => {
+  assert.strictEqual(C.validateFill({ date: '2026-11-01', odo: '1000', litres: '40', cost: '£63.60', full: true }).ok, true);
+  const bad = C.validateFill({ date: '2026-11-01', odo: '1000', litres: '40', cost: '6.36' });
+  assert.ok(/a litre/.test(bad.errors.cost));
+});
+
+test('older saved settings without newer fields still load', () => {
+  const old = { price: 1.6, mpg: 21, commuteMiles: 34, fare: 5.5, stationMiles: 3.6, stationMpg: 15, wearPence: 10, target: 90, includeWear: false };
+  const r = C.validateSettings(old);
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.settings.mpg, 21);
+  assert.strictEqual(r.settings.single, 5.5);
+  assert.strictEqual(r.settings.useFills, true);
+});
+
+test('two singles make the train dearer than a return', () => {
+  const s = C.entrySaving('train', Object.assign({}, C.DEFAULTS, { fare: 11 }));
+  assert.strictEqual(s.fuel, 0.17);
 });
 
 console.log('\n' + passed + ' passed' + (process.exitCode ? ', some FAILED' : ''));

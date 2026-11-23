@@ -52,6 +52,17 @@
           <input type="date" id="logDate" required>
         </label>
       </div>
+      <div class="fare-row">
+        <label class="field fare-field">
+          <span>Ticket cost today, both ways (£)</span>
+          <input type="text" id="dayFare" inputmode="decimal" autocomplete="off">
+        </label>
+        <div class="fare-chips" id="fareChips">
+          <button type="button" class="chip" data-fare="return">Day return <b id="chipReturn">£6.10</b></button>
+          <button type="button" class="chip" data-fare="singles">2 singles <b id="chipSingles">£11.00</b></button>
+        </div>
+        <p class="basis" id="basis"></p>
+      </div>
       <div class="train-buttons">
         <button type="button" class="big-btn" data-mode="train" data-label="Train, walked">
           <span class="big-btn-label">Train, walked</span>
@@ -91,6 +102,47 @@
       <p class="hint">Uses the date above.</p>
     </section>
 
+    <section class="card" aria-labelledby="fuelTitle">
+      <h2 id="fuelTitle">Fuel log</h2>
+      <p class="hint top">Log each fill-up to get your van's real mpg and petrol price. Fill to full each time if you can: mpg needs two full tanks.</p>
+      <dl class="stats">
+        <div><dt>Real mpg</dt><dd id="fMpg">–</dd></div>
+        <div><dt>Petrol</dt><dd id="fPrice">–</dd></div>
+        <div><dt>Per mile</dt><dd id="fPerMile">–</dd></div>
+      </dl>
+      <p class="hint" id="fuelNote"></p>
+      <label class="toggle">
+        <input type="checkbox" id="useFills" role="switch">
+        <span class="toggle-track" aria-hidden="true"></span>
+        <span>Use these for new train days</span>
+      </label>
+
+      <form id="fillForm" class="fill-form" novalidate>
+        <label class="field"><span>Date</span><input type="date" name="date"><em class="error" data-ferr="date"></em></label>
+        <div class="field odo-field">
+          <label for="fillOdo"><span>Odometer</span></label>
+          <div class="odo-row">
+            <input id="fillOdo" name="odo" inputmode="numeric" autocomplete="off" placeholder="e.g. 112480">
+            <select id="odoUnit" aria-label="Odometer unit">
+              <option value="mi">miles</option>
+              <option value="km">km</option>
+            </select>
+          </div>
+          <em class="error" data-ferr="odo"></em>
+        </div>
+        <label class="field"><span>Litres</span><input name="litres" inputmode="decimal" autocomplete="off" placeholder="0.00"><em class="error" data-ferr="litres"></em></label>
+        <label class="field"><span>Paid (£)</span><input name="cost" inputmode="decimal" autocomplete="off" placeholder="0.00"><em class="error" data-ferr="cost"></em></label>
+        <label class="check span2">
+          <input type="checkbox" name="full" checked>
+          <span>Filled to full</span>
+        </label>
+        <p class="hint span2" id="fillPreview"></p>
+        <button type="submit" class="btn primary span2">Add fill-up</button>
+      </form>
+
+      <ul class="log fills" id="fillList"></ul>
+    </section>
+
     <section class="card" aria-labelledby="totalsTitle">
       <h2 id="totalsTitle">Running totals</h2>
       <dl class="totals">
@@ -127,13 +179,22 @@
         <h2 id="settingsTitle">Settings</h2>
         <button type="button" class="btn ghost small" id="closeSettings">Close</button>
       </div>
-      <p class="hint">Changes apply to new entries only. Days already logged keep the figures they were saved with.</p>
+      <p class="hint">Changes apply to new entries only. Days already logged keep the figures they were saved with. Petrol price and mpg here are only used until your fuel log has real figures (or if you switch that off).</p>
       <form id="settingsForm" novalidate>
         <div class="settings-grid">
           <label class="field"><span>Petrol price (£ per litre)</span><input name="price" inputmode="decimal" autocomplete="off"><em class="error" data-err="price"></em></label>
-          <label class="field"><span>Van mpg (UK gallons)</span><input name="mpg" inputmode="decimal" autocomplete="off"><em class="error" data-err="mpg"></em></label>
+          <div class="field"><label for="setMpg">Van mpg (UK gallons)</label><input id="setMpg" name="mpg" inputmode="decimal" autocomplete="off"><em class="error" data-err="mpg"></em>
+            <details class="helper"><summary>Dashboard shows km/L?</summary>
+              <div class="helper-row"><input id="kmplIn" inputmode="decimal" aria-label="km per litre" placeholder="km/L"><button type="button" class="btn small" id="kmplUse">Use</button></div>
+              <p class="hint" id="kmplOut"></p>
+            </details></div>
           <label class="field"><span>Commute round trip (miles)</span><input name="commuteMiles" inputmode="decimal" autocomplete="off"><em class="error" data-err="commuteMiles"></em></label>
-          <label class="field"><span>Train return fare (£)</span><input name="fare" inputmode="decimal" autocomplete="off"><em class="error" data-err="fare"></em></label>
+          <div class="field"><label for="setFare">Usual train return fare (£)</label><input id="setFare" name="fare" inputmode="decimal" autocomplete="off"><em class="error" data-err="fare"></em>
+            <details class="helper"><summary>Season ticket or Flexipass?</summary>
+              <div class="helper-row"><input id="passPrice" inputmode="decimal" aria-label="Ticket price in pounds" placeholder="£ price"><input id="passDays" inputmode="numeric" aria-label="Days of travel it covers" placeholder="days"><button type="button" class="btn small" id="passUse">Use</button></div>
+              <p class="hint" id="passOut">Enter what it cost and how many days you will actually travel on it.</p>
+            </details></div>
+          <label class="field"><span>Single fare, one way (£)</span><input name="single" inputmode="decimal" autocomplete="off"><em class="error" data-err="single"></em></label>
           <label class="field"><span>Drive to station round trip (miles)</span><input name="stationMiles" inputmode="decimal" autocomplete="off"><em class="error" data-err="stationMiles"></em></label>
           <label class="field"><span>Mpg on short station runs</span><input name="stationMpg" inputmode="decimal" autocomplete="off"><em class="error" data-err="stationMpg"></em></label>
           <label class="field"><span>Van wear (pence per mile)</span><input name="wearPence" inputmode="decimal" autocomplete="off"><em class="error" data-err="wearPence"></em></label>

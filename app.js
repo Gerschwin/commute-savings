@@ -4,23 +4,25 @@
   var C = window.Calc;
 
   /* ================= storage ================= */
+  // IndexedDB with a localStorage fallback. Two lists (entries, fills) plus settings.
   var DB_NAME = 'commute-savings';
-  var LS_ENTRIES = 'cs.entries';
-  var LS_SETTINGS = 'cs.settings';
+  var LS = { entries: 'cs.entries', fills: 'cs.fills', settings: 'cs.settings' };
 
   var store = (function () {
     var dbp = null;
+    var mode = 'idb';
 
     function openDB() {
       if (dbp) return dbp;
       dbp = new Promise(function (resolve, reject) {
         if (!('indexedDB' in window)) return reject(new Error('no indexedDB'));
         var req;
-        try { req = indexedDB.open(DB_NAME, 1); } catch (e) { return reject(e); }
+        try { req = indexedDB.open(DB_NAME, 2); } catch (e) { return reject(e); }
         req.onupgradeneeded = function () {
           var db = req.result;
           if (!db.objectStoreNames.contains('entries')) db.createObjectStore('entries', { keyPath: 'id' });
           if (!db.objectStoreNames.contains('kv')) db.createObjectStore('kv');
+          if (!db.objectStoreNames.contains('fills')) db.createObjectStore('fills', { keyPath: 'id' });
         };
         req.onsuccess = function () { resolve(req.result); };
         req.onerror = function () { reject(req.error); };
@@ -29,12 +31,11 @@
       return dbp;
     }
 
-    function tx(storeName, mode, fn) {
+    function tx(storeName, txMode, fn) {
       return openDB().then(function (db) {
         return new Promise(function (resolve, reject) {
-          var t = db.transaction(storeName, mode);
-          var s = t.objectStore(storeName);
-          var result = fn(s);
+          var t = db.transaction(storeName, txMode);
+          var result = fn(t.objectStore(storeName));
           t.oncomplete = function () { resolve(result && 'result' in result ? result.result : result); };
           t.onerror = function () { reject(t.error); };
           t.onabort = function () { reject(t.error); };
@@ -50,59 +51,53 @@
       try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* storage full or blocked */ }
     }
 
-    var mode = 'idb';
-    var api = {
+    return {
       mode: function () { return mode; },
       init: function () {
-        return openDB().then(function () { mode = 'idb'; })
-          .catch(function () { mode = 'ls'; });
+        return openDB().then(function () { mode = 'idb'; }).catch(function () { mode = 'ls'; });
       },
-      loadEntries: function () {
-        if (mode === 'ls') return Promise.resolve(lsGet(LS_ENTRIES, []));
-        return tx('entries', 'readonly', function (s) { return s.getAll(); });
+      load: function (name) {
+        if (mode === 'ls') return Promise.resolve(lsGet(LS[name], []));
+        return tx(name, 'readonly', function (s) { return s.getAll(); });
       },
-      putEntries: function (list) {
+      put: function (name, list) {
         if (mode === 'ls') {
-          var all = lsGet(LS_ENTRIES, []);
           var byId = {};
-          all.forEach(function (e) { byId[e.id] = e; });
-          list.forEach(function (e) { byId[e.id] = e; });
-          lsSet(LS_ENTRIES, Object.keys(byId).map(function (k) { return byId[k]; }));
+          lsGet(LS[name], []).concat(list).forEach(function (e) { byId[e.id] = e; });
+          lsSet(LS[name], Object.keys(byId).map(function (k) { return byId[k]; }));
           return Promise.resolve();
         }
-        return tx('entries', 'readwrite', function (s) { list.forEach(function (e) { s.put(e); }); });
+        return tx(name, 'readwrite', function (s) { list.forEach(function (e) { s.put(e); }); });
       },
-      deleteEntry: function (id) {
+      del: function (name, id) {
         if (mode === 'ls') {
-          lsSet(LS_ENTRIES, lsGet(LS_ENTRIES, []).filter(function (e) { return e.id !== id; }));
+          lsSet(LS[name], lsGet(LS[name], []).filter(function (e) { return e.id !== id; }));
           return Promise.resolve();
         }
-        return tx('entries', 'readwrite', function (s) { s.delete(id); });
+        return tx(name, 'readwrite', function (s) { s.delete(id); });
       },
-      replaceEntries: function (list) {
-        if (mode === 'ls') { lsSet(LS_ENTRIES, list); return Promise.resolve(); }
-        return tx('entries', 'readwrite', function (s) {
-          s.clear();
-          list.forEach(function (e) { s.put(e); });
-        });
+      replace: function (name, list) {
+        if (mode === 'ls') { lsSet(LS[name], list); return Promise.resolve(); }
+        return tx(name, 'readwrite', function (s) { s.clear(); list.forEach(function (e) { s.put(e); }); });
       },
       loadSettings: function () {
-        if (mode === 'ls') return Promise.resolve(lsGet(LS_SETTINGS, null));
+        if (mode === 'ls') return Promise.resolve(lsGet(LS.settings, null));
         return tx('kv', 'readonly', function (s) { return s.get('settings'); });
       },
       saveSettings: function (obj) {
-        if (mode === 'ls') { lsSet(LS_SETTINGS, obj); return Promise.resolve(); }
+        if (mode === 'ls') { lsSet(LS.settings, obj); return Promise.resolve(); }
         return tx('kv', 'readwrite', function (s) { s.put(obj, 'settings'); });
       }
     };
-    return api;
   })();
 
   /* ================= state ================= */
   var state = {
     entries: [],
     settings: Object.assign({}, C.DEFAULTS),
-    listLimit: 30
+    listLimit: 30,
+    fills: [],
+    stats: null
   };
 
   function todayISO() { return C.toISO(new Date()); }
@@ -123,7 +118,7 @@
     if (!e || !C.isISODate(e.date)) return null;
     var fuel = Number(e.fuel), wear = Number(e.wear || 0);
     if (!isFinite(fuel)) return null;
-    return {
+    var out = {
       id: String(e.id || uid()),
       date: e.date,
       ts: Number(e.ts) || Date.now(),
@@ -132,6 +127,35 @@
       fuel: C.round2(fuel),
       wear: isFinite(wear) ? C.round2(wear) : 0
     };
+    // What the day was worked out with (kept for the log list; older entries won't have these).
+    ['fare', 'mpg', 'price'].forEach(function (k) {
+      if (e[k] != null && isFinite(Number(e[k]))) out[k] = Number(e[k]);
+    });
+    return out;
+  }
+
+  function sanitiseFill(f) {
+    if (!f || !C.isISODate(f.date)) return null;
+    var odo = Number(f.odo), litres = Number(f.litres), cost = Number(f.cost);
+    if (!(odo > 0) || !(litres > 0) || !(cost > 0)) return null;
+    return { id: String(f.id || uid()), date: f.date, ts: Number(f.ts) || Date.now(), odo: odo, litres: litres, cost: cost, full: !!f.full };
+  }
+
+  function recalcStats() {
+    state.stats = C.fillStats(state.fills, state.settings.odoUnit);
+  }
+
+  /* Fare typed into "Ticket cost today", or the usual fare if blank or invalid. */
+  function dayFare() {
+    var raw = $('dayFare').value.trim();
+    if (raw === '') return null;
+    var v = parseFloat(raw.replace(/[£,\s]/g, ''));
+    return isFinite(v) && v >= 0 ? C.round2(v) : null;
+  }
+
+  /* Settings a train day logged right now would use. */
+  function current() {
+    return C.effectiveSettings(state.settings, state.stats, dayFare());
   }
 
   /* ================= DOM helpers ================= */
@@ -174,7 +198,7 @@
     state.entries.push(entry);
     sortEntries();
     render();
-    store.putEntries([entry]).catch(saveFailed);
+    store.put('entries', [entry]).catch(saveFailed);
     if (!silent) {
       toast('Added ' + C.money(C.displayValue(entry, state.settings.includeWear)) + ' · ' + C.shortDate(entry.date), function () {
         removeEntry(entry.id, true);
@@ -191,7 +215,7 @@
     });
     if (!entry) return;
     render();
-    store.deleteEntry(id).catch(saveFailed);
+    store.del('entries', id).catch(saveFailed);
     if (!silent) {
       toast('Deleted ' + (entry.label || 'entry'), function () {
         addEntry(entry, true);
@@ -214,8 +238,12 @@
     var date = selectedDate();
     var already = state.entries.some(function (e) { return e.date === date && e.type !== 'custom'; });
     if (already && !confirm('A train day is already logged for ' + C.shortDate(date) + '. Add another?')) return;
-    var s = C.entrySaving(mode, state.settings);
-    addEntry({ id: uid(), date: date, ts: Date.now(), type: mode, label: label, fuel: s.fuel, wear: s.wear });
+    var eff = current();
+    var s = C.entrySaving(mode, eff);
+    addEntry({
+      id: uid(), date: date, ts: Date.now(), type: mode, label: label, fuel: s.fuel, wear: s.wear,
+      fare: C.round2(eff.fare), mpg: Math.round(eff.mpg * 10) / 10, price: Math.round(eff.price * 1000) / 1000
+    });
   }
 
   function parseAmount(str) {
@@ -245,8 +273,20 @@
     $('targetText').textContent = 'target ' + C.money(s.target);
 
     // button amounts (what a tap would add now)
-    var tr = C.displayValue(C.entrySaving('train', s), s.includeWear);
-    var st = C.displayValue(C.entrySaving('station', s), s.includeWear);
+    var eff = current();
+    var tr = C.displayValue(C.entrySaving('train', eff), s.includeWear);
+    var st = C.displayValue(C.entrySaving('station', eff), s.includeWear);
+    $('basis').textContent = 'Working out with ' + eff.mpg.toFixed(1) + ' mpg' + (eff.source.mpg === 'fills' ? ' (real)' : '') +
+      ' and petrol at ' + (eff.price * 100).toFixed(1) + 'p a litre' + (eff.source.price === 'fills' ? ' (last fill)' : '') + '.';
+    $('dayFare').placeholder = state.settings.fare.toFixed(2);
+    $('chipReturn').textContent = C.money(state.settings.fare);
+    $('chipSingles').textContent = C.money(state.settings.single * 2);
+    var df = dayFare();
+    document.querySelectorAll('[data-fare]').forEach(function (b) {
+      var v = b.dataset.fare === 'return' ? state.settings.fare : state.settings.single * 2;
+      var on = df === null ? b.dataset.fare === 'return' : C.round2(v) === df;
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
     document.querySelectorAll('[data-amount="train"]').forEach(function (n) { n.textContent = '+' + C.money(tr); });
     document.querySelectorAll('[data-amount="station"]').forEach(function (n) { n.textContent = (st >= 0 ? '+' : '') + C.money(st); });
 
@@ -259,6 +299,7 @@
     $('wearHint').textContent = s.includeWear ? 'Totals include van wear.' : 'Fuel savings only. Van wear can be added in Settings.';
 
     renderList();
+    renderFuel();
     renderChart();
   }
 
@@ -276,7 +317,8 @@
       list.appendChild(el('li', null, [
         el('div', null, [
           el('span', { class: 'when', text: C.shortDate(e.date) + (e.date.slice(0, 4) !== todayISO().slice(0, 4) ? ' ' + e.date.slice(0, 4) : '') }),
-          el('span', { class: 'what', text: e.label || (e.type === 'custom' ? 'Other saving' : 'Train') })
+          el('span', { class: 'what', text: e.label || (e.type === 'custom' ? 'Other saving' : 'Train') }),
+          e.fare != null ? el('span', { class: 'sub', text: 'Ticket ' + C.money(e.fare) + (e.mpg ? ' · ' + e.mpg.toFixed(1) + ' mpg · ' + (e.price * 100).toFixed(1) + 'p/L' : '') }) : null
         ]),
         el('span', { class: 'amt' + (v < 0 ? ' neg' : ''), text: C.money(v) }),
         del
@@ -363,6 +405,144 @@
     box.setAttribute('aria-label', 'Cumulative savings this month: ' + C.money(cum[todayIdx - 1]) + ' of a ' + C.money(target) + ' target.');
   }
 
+  /* ================= fuel log ================= */
+  function sortFills() {
+    state.fills.sort(function (a, b) { return b.odo - a.odo || (a.date < b.date ? 1 : -1); });
+  }
+
+  function renderFuel() {
+    var st = state.stats || C.fillStats([], 'mi');
+    var s = state.settings;
+    $('fMpg').textContent = st.mpg ? st.mpg.toFixed(1) : '–';
+    $('fPrice').textContent = st.price ? (st.price * 100).toFixed(1) + 'p' : '–';
+    var eff = C.effectiveSettings(s, st, null);
+    $('fPerMile').textContent = st.mpg || st.price ? (C.fuelCostPerMile(eff.price, eff.mpg) * 100).toFixed(1) + 'p' : '–';
+
+    var note;
+    if (!state.fills.length) note = 'No fill-ups yet, so your Settings figures (' + s.mpg + ' mpg, ' + (s.price * 100).toFixed(1) + 'p a litre) are used.';
+    else if (!st.mpg) note = 'Real mpg appears after your next full tank. Until then ' + s.mpg + ' mpg from Settings is used.';
+    else {
+      note = 'Average of your last ' + st.used + (st.used === 1 ? ' tank' : ' tanks');
+      if (st.used > 1 && st.lastMpg) note += ', last tank ' + st.lastMpg.toFixed(1) + ' mpg';
+      note += '. Petrol price from ' + C.shortDate(st.priceDate) + '.';
+      var drive = C.drivingCost(eff);
+      note += ' The ' + s.commuteMiles + ' mile commute costs ' + C.money(drive) + ' in fuel.';
+    }
+    $('fuelNote').textContent = note;
+    $('useFills').checked = !!s.useFills;
+    $('odoUnit').value = s.odoUnit;
+
+    var list = $('fillList');
+    list.textContent = '';
+    state.fills.slice(0, 8).forEach(function (f) {
+      var del = el('button', { type: 'button', class: 'del', 'aria-label': 'Delete fill-up on ' + C.shortDate(f.date) });
+      del.innerHTML = DELETE_ICON;
+      del.addEventListener('click', function () { removeFill(f.id); });
+      var unit = s.odoUnit === 'km' ? ' km' : ' mi';
+      list.appendChild(el('li', null, [
+        el('div', null, [
+          el('span', { class: 'when', text: C.shortDate(f.date) + ' · ' + Math.round(f.odo).toLocaleString('en-GB') + unit }),
+          el('span', { class: 'what', text: f.litres.toFixed(2) + ' L at ' + (f.cost / f.litres * 100).toFixed(1) + 'p' + (f.full ? '' : ' (top-up)') })
+        ]),
+        el('span', { class: 'amt plain', text: C.money(f.cost) }),
+        del
+      ]));
+    });
+  }
+
+  function addFill(fill, silent) {
+    state.fills.push(fill);
+    sortFills();
+    recalcStats();
+    render();
+    store.put('fills', [fill]).catch(saveFailed);
+    if (!silent) {
+      var st = state.stats;
+      var msg = 'Fill-up added' + (st.mpg ? ' · ' + st.mpg.toFixed(1) + ' mpg' : '');
+      toast(msg, function () { removeFill(fill.id, true); toast('Removed'); });
+    }
+  }
+
+  function removeFill(id, silent) {
+    var fill = null;
+    state.fills = state.fills.filter(function (f) { if (f.id === id) { fill = f; return false; } return true; });
+    if (!fill) return;
+    recalcStats();
+    render();
+    store.del('fills', id).catch(saveFailed);
+    if (!silent) toast('Deleted fill-up', function () { addFill(fill, true); toast('Restored'); });
+  }
+
+  var fillForm = $('fillForm');
+  function fillRaw() {
+    return {
+      date: fillForm.elements.date.value, odo: fillForm.elements.odo.value,
+      litres: fillForm.elements.litres.value, cost: fillForm.elements.cost.value, full: fillForm.elements.full.checked
+    };
+  }
+  fillForm.addEventListener('input', function () {
+    var r = C.validateFill(fillRaw());
+    var p = $('fillPreview');
+    p.textContent = '';
+    if (!r.errors.litres && !r.errors.cost) p.textContent = (r.fill.cost / r.fill.litres * 100).toFixed(1) + 'p a litre.';
+    var last = state.fills[0];
+    if (!r.errors.odo && last && r.fill.odo > last.odo) {
+      var unit = state.settings.odoUnit === 'km' ? ' km' : ' miles';
+      p.textContent += ' ' + Math.round(r.fill.odo - last.odo).toLocaleString('en-GB') + unit + ' since the last fill.';
+    }
+  });
+  fillForm.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    fillForm.querySelectorAll('[data-ferr]').forEach(function (n) { n.textContent = ''; });
+    var r = C.validateFill(fillRaw());
+    var dup = !r.errors.odo && state.fills.some(function (f) { return f.odo === r.fill.odo; });
+    if (dup) { r.ok = false; r.errors.odo = 'A fill-up at this reading is already logged'; }
+    if (!r.ok) {
+      Object.keys(r.errors).forEach(function (k) {
+        var n = fillForm.querySelector('[data-ferr="' + k + '"]');
+        if (n) n.textContent = r.errors[k];
+      });
+      return;
+    }
+    var last = state.fills[0];
+    if (last && r.fill.odo < last.odo && r.fill.date > last.date &&
+        !confirm('That reading is lower than your last fill (' + Math.round(last.odo) + '). Add it anyway?')) return;
+    addFill(Object.assign({ id: uid(), ts: Date.now() }, r.fill));
+    ['odo', 'litres', 'cost'].forEach(function (k) { fillForm.elements[k].value = ''; });
+    fillForm.elements.full.checked = true;
+    $('fillPreview').textContent = '';
+  });
+
+  function saveSettingsQuietly() {
+    store.saveSettings(state.settings).catch(saveFailed);
+  }
+  $('useFills').addEventListener('change', function () {
+    state.settings = Object.assign({}, state.settings, { useFills: $('useFills').checked });
+    saveSettingsQuietly();
+    render();
+  });
+  $('odoUnit').addEventListener('change', function () {
+    state.settings = Object.assign({}, state.settings, { odoUnit: $('odoUnit').value });
+    saveSettingsQuietly();
+    recalcStats();
+    render();
+  });
+
+  document.querySelectorAll('[data-fare]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var v = b.dataset.fare === 'return' ? state.settings.fare : state.settings.single * 2;
+      $('dayFare').value = C.round2(v).toFixed(2);
+      $('dayFare').setAttribute('aria-invalid', 'false');
+      render();
+    });
+  });
+
+  $('dayFare').addEventListener('input', function () {
+    var raw = $('dayFare').value.trim();
+    $('dayFare').setAttribute('aria-invalid', raw !== '' && dayFare() === null ? 'true' : 'false');
+    render();
+  });
+
   /* ================= settings form ================= */
   var form = $('settingsForm');
 
@@ -382,6 +562,8 @@
     var raw = {};
     C.FIELDS.forEach(function (k) { raw[k] = form.elements[k].value; });
     raw.includeWear = form.elements.includeWear.checked;
+    raw.useFills = state.settings.useFills;
+    raw.odoUnit = state.settings.odoUnit;
     return C.validateSettings(raw);
   }
 
@@ -389,8 +571,9 @@
     var r = readSettingsForm();
     var p = $('settingsPreview');
     if (!r.ok) { p.textContent = ''; return; }
-    var a = C.entrySaving('train', r.settings), b = C.entrySaving('station', r.settings);
-    p.textContent = 'With these settings: walked or cycled ' + C.money(a.fuel) + ' fuel + ' + C.money(a.wear) +
+    var eff = C.effectiveSettings(r.settings, state.stats, null);
+    var a = C.entrySaving('train', eff), b = C.entrySaving('station', eff);
+    p.textContent = (eff.source.mpg === 'fills' || eff.source.price === 'fills' ? 'With these settings and your fuel log' : 'With these settings') + ': walked or cycled ' + C.money(a.fuel) + ' fuel + ' + C.money(a.wear) +
       ' wear, drove to station ' + C.money(b.fuel) + ' fuel + ' + C.money(b.wear) + ' wear.';
   }
 
@@ -415,6 +598,27 @@
     closeSettings();
     toast('Settings saved');
   });
+  // km/L to mpg helper
+  $('kmplUse').addEventListener('click', function () {
+    var v = parseFloat($('kmplIn').value);
+    if (!(v > 0)) { $('kmplOut').textContent = 'Enter the km/L figure from the dashboard.'; return; }
+    var mpg = Math.round(C.kmplToMpg(v) * 10) / 10;
+    form.elements.mpg.value = String(mpg);
+    $('kmplOut').textContent = v + ' km/L is ' + mpg + ' mpg. Press Save settings to keep it.';
+    updatePreview();
+  });
+
+  // Season ticket / Flexipass helper: price ÷ days travelled
+  $('passUse').addEventListener('click', function () {
+    var price = parseFloat(String($('passPrice').value).replace(/[£,\s]/g, ''));
+    var days = parseInt($('passDays').value, 10);
+    if (!(price > 0) || !(days > 0)) { $('passOut').textContent = 'Enter the ticket price and the number of days you will travel on it.'; return; }
+    var perDay = C.round2(price / days);
+    form.elements.fare.value = perDay.toFixed(2);
+    $('passOut').textContent = C.money(price) + ' over ' + days + ' days is ' + C.money(perDay) + ' a day. Press Save settings to keep it.';
+    updatePreview();
+  });
+
   $('resetSettings').addEventListener('click', function () {
     fillSettingsForm(C.DEFAULTS);
   });
@@ -510,19 +714,19 @@
       state.entries = state.entries.concat(fresh);
       sortEntries();
       render();
-      store.putEntries(fresh).catch(saveFailed);
+      store.put('entries', fresh).catch(saveFailed);
       var ids = fresh.map(function (e) { return e.id; });
       toast('Imported ' + fresh.length + (dupes ? ', ' + dupes + ' already here' : '') + (r.skipped ? ', ' + r.skipped + ' skipped' : ''), function () {
         state.entries = state.entries.filter(function (e) { return ids.indexOf(e.id) < 0; });
         render();
-        Promise.all(ids.map(store.deleteEntry)).catch(saveFailed);
+        Promise.all(ids.map(function (id) { return store.del('entries', id); })).catch(saveFailed);
         toast('Import undone');
       });
     });
   });
 
   $('backupJson').addEventListener('click', function () {
-    var data = { app: 'commute-savings', version: 1, exported: new Date().toISOString(), settings: state.settings, entries: state.entries };
+    var data = { app: 'commute-savings', version: 1, exported: new Date().toISOString(), settings: state.settings, entries: state.entries, fills: state.fills };
     download('commute-savings-backup-' + todayISO() + '.json', JSON.stringify(data, null, 2), 'application/json');
   });
 
@@ -536,21 +740,29 @@
       var msg = 'Replace everything on this device with the backup?\n\n' + clean.length + ' entries in the backup, ' +
         state.entries.length + ' on this device now.';
       if (!confirm(msg)) return;
-      var prevEntries = state.entries.slice(), prevSettings = state.settings;
+      var prevEntries = state.entries.slice(), prevSettings = state.settings, prevFills = state.fills.slice();
+      var restoreFills = Array.isArray(data.fills);
+      if (restoreFills) {
+        state.fills = data.fills.map(sanitiseFill).filter(Boolean);
+        store.replace('fills', state.fills).catch(saveFailed);
+      }
       state.entries = clean;
       sortEntries();
       if (data.settings) {
         var v = C.validateSettings(data.settings);
         if (v.ok) { state.settings = v.settings; store.saveSettings(v.settings).catch(saveFailed); }
       }
+      recalcStats();
       render();
-      store.replaceEntries(clean).catch(saveFailed);
+      store.replace('entries', clean).catch(saveFailed);
       toast('Restored ' + clean.length + ' entries', function () {
         state.entries = prevEntries;
         state.settings = prevSettings;
+        if (restoreFills) { state.fills = prevFills; store.replace('fills', prevFills).catch(saveFailed); }
+        recalcStats();
         sortEntries();
         render();
-        store.replaceEntries(prevEntries).catch(saveFailed);
+        store.replace('entries', prevEntries).catch(saveFailed);
         store.saveSettings(prevSettings).catch(saveFailed);
         toast('Restore undone');
       });
@@ -560,6 +772,8 @@
   /* ---------- date picker ---------- */
   function resetDate() {
     var t = todayISO();
+    fillForm.elements.date.max = t;
+    if (!fillForm.elements.date.value) fillForm.elements.date.value = t;
     $('logDate').max = t;
     if (!$('logDate').value || $('logDate').value > t) $('logDate').value = t;
   }
@@ -585,14 +799,16 @@
   /* ================= boot ================= */
   resetDate();
   store.init()
-    .then(function () { return Promise.all([store.loadEntries(), store.loadSettings()]); })
+    .then(function () { return Promise.all([store.load('entries'), store.loadSettings(), store.load('fills')]); })
     .then(function (res) {
       state.entries = (res[0] || []).map(sanitiseEntry).filter(Boolean);
+      state.fills = (res[2] || []).map(sanitiseFill).filter(Boolean);
       if (res[1]) {
         var v = C.validateSettings(res[1]);
         if (v.ok) state.settings = v.settings;
       }
       sortEntries();
+      recalcStats();
       $('storageNote').textContent = store.mode() === 'idb' ? '' : 'Saving in basic browser storage (IndexedDB is unavailable here).';
       render();
       if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {});
