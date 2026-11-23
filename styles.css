@@ -66,7 +66,7 @@ body {
   font-size: 17px;
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 .wrap {
@@ -400,3 +400,20 @@ input { font-size: 16px; }
 .route-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; background: var(--bg); border-radius: 14px; margin: 0 0 14px; }
 .route-opt { min-height: 44px; border: 0; border-radius: 10px; background: transparent; color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
 .route-opt[aria-pressed="true"] { background: var(--btn-bg); color: var(--btn-text); }
+
+/* ---------- section headings: bigger, and they stay at the top while you scroll through their card ---------- */
+.card > h2:not(.sr-only), .card > .card-head {
+  position: sticky; top: 0; z-index: 5;
+  margin: -18px -16px 14px; padding: 14px 16px 10px;
+  background: var(--surface);
+  border-radius: var(--radius) var(--radius) 0 0;
+  border-bottom: 1.5px solid var(--line);
+}
+.card > h2:not(.sr-only), .card > .card-head h2 {
+  font-family: var(--font-num); font-weight: 900; font-size: 1.75rem; line-height: 1.05;
+  text-transform: uppercase; letter-spacing: .01em;
+}
+.card > h2:not(.sr-only)::before, .card > .card-head h2::before {
+  content: ""; display: inline-block; width: 6px; height: .8em; margin-right: 10px;
+  background: var(--accent); border-radius: 3px; vertical-align: -.02em;
+}
