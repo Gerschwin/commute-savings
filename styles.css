@@ -354,7 +354,7 @@ input { font-size: 16px; }
 .discount { border: 1.5px solid var(--line); border-radius: 14px; padding: 6px 12px 12px; margin: 0; min-width: 0; }
 .discount legend { font-size: .85rem; font-weight: 700; padding: 0 6px; color: var(--muted); }
 .discount .toggle { margin-top: 0; }
-.discount-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.discount-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: end; }
 .discount-grid .span2 { grid-column: span 2; }
 .span-all { grid-column: 1 / -1; }
 .recalc { margin-top: 6px; }
