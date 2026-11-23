@@ -777,16 +777,9 @@
   }
 
   function motivator(t, s) {
-    var lines = [];
-    if (t.kcal > 0) lines.push('About ' + fatText(t.kcal) + ' of fat burned off this month.');
-    if (t.allKcal > t.kcal) lines.push('About ' + fatText(t.allKcal) + ' of fat burned off since you started.');
-    if (t.kcal > 0 && t.activeDays) lines.push('Keep this up for a year and that\'s about ' + fatText(t.kcal / Math.max(1, new Date().getDate()) * 365) + ' of fat.');
-    if (t.steps >= 10000) lines.push(fmtInt(t.steps) + ' steps this month, about ' + (t.steps / 10000).toFixed(1) + ' days\' worth of the 10,000 a day target.');
-    if (t.miles > 0) lines.push(t.miles + ' miles under your own steam this month instead of sitting in traffic on the M8.');
-    if (t.streak >= 3) lines.push(t.streak + ' active days in a row. Keep it going tomorrow.');
-    if (!lines.length) return t.allMiles > 0 ? 'New month, fresh start. Walk or cycle to the station to get going.' : 'Walk or cycle to the station and it shows up here.';
-    var d = new Date();
-    return lines[(d.getDate() + d.getMonth()) % lines.length];
+    if (t.allKcal > 0) return 'About ' + fatText(t.allKcal) + ' of fat burned off so far.';
+    if (!(s.weightKg > 0)) return 'Add your weight in Settings to see how much fat you\'ve burned off.';
+    return 'Walk or cycle to the station and the fat you burn off shows up here.';
   }
 
   function renderExercise() {
