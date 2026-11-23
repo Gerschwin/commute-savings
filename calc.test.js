@@ -333,4 +333,28 @@ test('changing Settings petrol price keeps each day\'s mpg', () => {
   assert.strictEqual(ch[0].price, 1.45);
 });
 
+test('commute exercise from the two legs', () => {
+  const s = Object.assign({}, C.DEFAULTS); // 1.6 home leg, 0.8 work leg
+  const w = C.commuteExercise('walked', s);
+  assert.deepStrictEqual(w.map(x => [x.kind, x.miles]), [['walk', 4.8]]);
+  const c = C.commuteExercise('cycled', s);
+  assert.deepStrictEqual(c.map(x => [x.kind, x.miles]), [['cycle', 3.2], ['walk', 1.6]]);
+  const d = C.commuteExercise('station', s);
+  assert.deepStrictEqual(d.map(x => [x.kind, x.miles]), [['walk', 1.6]]);
+  const none = Object.assign({}, s, { workLeg: 0 });
+  assert.deepStrictEqual(C.commuteExercise('station', none), []);
+  assert.deepStrictEqual(C.commuteExercise('cycled', none).map(x => x.kind), ['cycle']);
+});
+
+test('work leg may be 0 but not negative; old settings get the leg defaults', () => {
+  assert.ok(C.validateSettings(Object.assign({}, C.DEFAULTS, { workLeg: 0 })).ok);
+  assert.ok(C.validateSettings(Object.assign({}, C.DEFAULTS, { workLeg: '' })).ok);
+  assert.ok(!C.validateSettings(Object.assign({}, C.DEFAULTS, { workLeg: -1 })).ok);
+  const old = Object.assign({}, C.DEFAULTS); delete old.homeLeg; delete old.workLeg; old.walkMiles = 3.6;
+  const v = C.validateSettings(old);
+  assert.ok(v.ok);
+  assert.strictEqual(v.settings.homeLeg, 1.6);
+  assert.strictEqual(v.settings.workLeg, 0.8);
+});
+
 console.log('\n' + passed + ' passed' + (process.exitCode ? ', some FAILED' : ''));

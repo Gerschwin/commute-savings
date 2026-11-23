@@ -117,9 +117,16 @@ Fill-ups and exercise are included in the JSON backup.
 
 ## Exercise
 
-Walking or cycling to the station is logged as exercise automatically when you
-tap **Train, walked** or **Train, cycled** (distances are in Settings,
-3.6 miles there and back by default). You can add other walks, runs and rides
+Your commute exercise is logged automatically when you log a train day. In
+Settings, enter **Home to station** and **Station to work**, each way (1.6
+and 0.8 miles by default, Airdrie and Queen Street). Then:
+
+* **Train, walked**: both legs walked there and back (4.8 miles)
+* **Train, cycled**: home leg cycled (3.2 miles), work leg walked (1.6 miles)
+* **Train, drove to station**: work leg walked (1.6 miles)
+
+Set Station to work to 0 if you don't walk that bit. Days already logged keep
+the distances they were logged with. You can add other walks, runs and rides
 in the **Exercise** card, by miles or by steps.
 
 The card shows this month's miles walked and cycled, steps, calories, a

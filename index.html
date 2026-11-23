@@ -219,7 +219,7 @@
         <label class="field" id="exStepsField"><span>or steps</span><input name="steps" inputmode="numeric" autocomplete="off" placeholder="0"></label>
         <label class="field"><span>Minutes (optional)</span><input name="mins" inputmode="numeric" autocomplete="off" placeholder="auto"></label>
         <label class="field"><span>Date</span><input type="date" name="date"></label>
-        <p class="hint span2" id="exPreview">Walked or cycled to the station? That's added for you when you log the day.</p>
+        <p class="hint span2" id="exPreview">Your commute walking and cycling is added for you when you log a train day (distances in Settings).</p>
         <p class="error span2" id="exError" role="alert"></p>
         <button type="submit" class="btn primary span2">Add exercise</button>
       </form>
@@ -287,8 +287,9 @@
         </div>
         <h3 class="settings-sub">Exercise</h3>
         <div class="settings-grid">
-          <label class="field"><span>Walk to station and back (miles)</span><input name="walkMiles" inputmode="decimal" autocomplete="off"><em class="error" data-err="walkMiles"></em></label>
-          <label class="field"><span>Cycle to station and back (miles)</span><input name="cycleMiles" inputmode="decimal" autocomplete="off"><em class="error" data-err="cycleMiles"></em></label>
+          <label class="field"><span>Home to station, each way (miles)</span><input name="homeLeg" inputmode="decimal" autocomplete="off"><em class="error" data-err="homeLeg"></em></label>
+          <label class="field"><span>Station to work, each way (miles)</span><input name="workLeg" inputmode="decimal" autocomplete="off"><em class="error" data-err="workLeg"></em></label>
+          <p class="hint span-all" id="legHint"></p>
           <label class="field"><span>Walking pace (mph)</span><input name="walkMph" inputmode="decimal" autocomplete="off"><em class="error" data-err="walkMph"></em></label>
           <label class="field"><span>Cycling pace (mph)</span><input name="cycleMph" inputmode="decimal" autocomplete="off"><em class="error" data-err="cycleMph"></em></label>
           <label class="field"><span>Active miles goal a month</span><input name="activeGoal" inputmode="decimal" autocomplete="off"><em class="error" data-err="activeGoal"></em></label>

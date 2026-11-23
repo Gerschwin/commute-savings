@@ -27,8 +27,8 @@
     useFills: true,     // use real mpg and price from the fuel log when there is enough data
     odoUnit: 'mi',      // odometer unit for the fuel log ("mi" or "km")
     // exercise
-    walkMiles: 3.6,     // walk to the station and back
-    cycleMiles: 3.6,    // cycle to the station and back
+    homeLeg: 1.6,       // home to your station, each way (miles)
+    workLeg: 0.8,       // Glasgow station to work, each way (miles); 0 if none
     walkMph: 3,         // usual walking pace
     cycleMph: 11,       // usual cycling pace
     activeGoal: 30,     // active miles a month
@@ -434,6 +434,21 @@
     };
   }
 
+  /* The exercise a train day brings, from the two legs in Settings.
+     walked: walk both legs there and back. cycled: cycle the home leg, walk
+     the work leg. drove to station: walk the work leg. */
+  function commuteExercise(how, s) {
+    var home = 2 * (Number(s.homeLeg) || 0), work = 2 * (Number(s.workLeg) || 0);
+    var parts = [];
+    if (how === 'walked') parts.push({ kind: 'walk', miles: home + work });
+    else if (how === 'cycled') { parts.push({ kind: 'cycle', miles: home }); parts.push({ kind: 'walk', miles: work }); }
+    else if (how === 'station') parts.push({ kind: 'walk', miles: work });
+    return parts.filter(function (p) { return p.miles > 0; }).map(function (p) {
+      p.miles = Math.round(p.miles * 100) / 100;
+      return exerciseCalc(p, s);
+    });
+  }
+
   /* "92", "92kg", "14st 7", "14st 7lb", "14 7", "14.5", "203lb" -> kg. unit is the default unit. */
   function parseWeight(str, unit) {
     var s = String(str == null ? '' : str).toLowerCase().trim();
@@ -511,7 +526,8 @@
 
   /* ---------- settings validation ---------- */
   var FIELDS = ['price', 'mpg', 'commuteMiles', 'fare', 'single', 'stationMiles', 'stationMpg', 'wearPence', 'target',
-    'walkMiles', 'cycleMiles', 'walkMph', 'cycleMph', 'activeGoal', 'discountFare', 'discountSingle'];
+    'homeLeg', 'walkMph', 'cycleMph', 'activeGoal', 'discountFare', 'discountSingle'];
+  var OPTIONAL = ['workLeg'];
 
   function validateSettings(raw) {
     // Settings saved by an older version may lack newer fields: fill them from the defaults.
@@ -520,6 +536,12 @@
     FIELDS.forEach(function (k) {
       var v = typeof raw[k] === 'number' ? raw[k] : parseFloat(String(raw[k] == null ? '' : raw[k]).trim());
       if (!isFinite(v) || v <= 0) errors[k] = 'Enter a number above 0';
+      else clean[k] = v;
+    });
+    // Optional distances: 0 is allowed.
+    OPTIONAL.forEach(function (k) {
+      var v = typeof raw[k] === 'number' ? raw[k] : parseFloat(String(raw[k] == null || raw[k] === '' ? '0' : raw[k]).trim());
+      if (!isFinite(v) || v < 0) errors[k] = 'Enter 0 or more';
       else clean[k] = v;
     });
     if (!errors.stationMiles && !errors.commuteMiles && clean.stationMiles >= clean.commuteMiles) {
@@ -551,6 +573,8 @@
     LITRES_PER_GALLON: LITRES_PER_GALLON,
     DEFAULTS: DEFAULTS,
     FIELDS: FIELDS,
+    OPTIONAL: OPTIONAL,
+    commuteExercise: commuteExercise,
     round2: round2,
     fuelCostPerMile: fuelCostPerMile,
     drivingCost: drivingCost,

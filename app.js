@@ -134,7 +134,9 @@
       if (e[k] != null && isFinite(Number(e[k]))) out[k] = Number(e[k]);
     });
     if (e.code) out.code = String(e.code).slice(0, 20);
-    if (e.ex) { var ex = sanitiseEx(Object.assign({ date: e.date }, e.ex)); if (ex) out.ex = exPart(ex); }
+    ['ex', 'ex2'].forEach(function (k) {
+      if (e[k]) { var ex = sanitiseEx(Object.assign({ date: e.date }, e[k])); if (ex) out[k] = exPart(ex); }
+    });
     return out;
   }
 
@@ -166,6 +168,7 @@
     var list = state.exercise.slice();
     state.entries.forEach(function (e) {
       if (e.ex) list.push(Object.assign({ id: 'e:' + e.id, entryId: e.id, date: e.date, ts: e.ts, label: 'Commute' }, e.ex));
+      if (e.ex2) list.push(Object.assign({ id: 'e2:' + e.id, entryId: e.id, date: e.date, ts: e.ts, label: 'Commute' }, e.ex2));
     });
     return list.sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (b.ts || 0) - (a.ts || 0); });
   }
@@ -229,7 +232,9 @@
     render();
     store.put('entries', [entry]).catch(saveFailed);
     if (!silent) {
-      var exNote = entry.ex ? ' · ' + entry.ex.miles + ' mi ' + (entry.ex.kind === 'cycle' ? 'cycled' : 'walked') : '';
+      var exNote = [entry.ex, entry.ex2].filter(Boolean).map(function (x) {
+        return ' · ' + x.miles + ' mi ' + (x.kind === 'cycle' ? 'cycled' : 'walked');
+      }).join('');
       toast('Added ' + C.money(C.displayValue(entry, state.settings.includeWear)) + exNote + ' · ' + C.shortDate(entry.date), function () {
         removeEntry(entry.id, true);
         toast('Removed');
@@ -274,8 +279,10 @@
       id: uid(), date: date, ts: Date.now(), type: mode, label: label, fuel: s.fuel, wear: s.wear,
       fare: C.round2(eff.fare), code: eff.fareCode || undefined, mpg: Math.round(eff.mpg * 10) / 10, price: Math.round(eff.price * 1000) / 1000
     };
-    if (/walked/i.test(label)) entry.ex = C.exerciseCalc({ kind: 'walk', miles: state.settings.walkMiles }, state.settings);
-    if (/cycled/i.test(label)) entry.ex = C.exerciseCalc({ kind: 'cycle', miles: state.settings.cycleMiles }, state.settings);
+    var how = mode === 'station' ? 'station' : /cycled/i.test(label) ? 'cycled' : /walked/i.test(label) ? 'walked' : '';
+    var parts = C.commuteExercise(how, state.settings);
+    if (parts[0]) entry.ex = parts[0];
+    if (parts[1]) entry.ex2 = parts[1];
     addEntry(entry);
   }
 
@@ -788,7 +795,7 @@
     $('exStepsField').hidden = inp.kind === 'cycle';
     $('exError').textContent = '';
     if (!inp.miles && !inp.steps) {
-      $('exPreview').textContent = 'Walked or cycled to the station? That\'s added for you when you log the day.';
+      $('exPreview').textContent = 'Your commute walking and cycling is added for you when you log a train day (distances in Settings).';
       return;
     }
     if (!inp.miles && !(state.settings.heightCm > 0)) {
@@ -838,7 +845,7 @@
   });
 
   function fillSettingsForm(s) {
-    C.FIELDS.forEach(function (k) {
+    C.FIELDS.concat(C.OPTIONAL).forEach(function (k) {
       var n = form.elements[k];
       n.value = n.hasAttribute('data-money') ? moneyText(s[k]) : String(s[k]);
     });
@@ -856,12 +863,12 @@
 
   function clearSettingsErrors() {
     form.querySelectorAll('[data-err]').forEach(function (n) { n.textContent = ''; });
-    C.FIELDS.concat(['weightKg', 'heightCm']).forEach(function (k) { form.elements[k].removeAttribute('aria-invalid'); });
+    C.FIELDS.concat(C.OPTIONAL, ['weightKg', 'heightCm']).forEach(function (k) { form.elements[k].removeAttribute('aria-invalid'); });
   }
 
   function readSettingsForm() {
     var raw = {};
-    C.FIELDS.forEach(function (k) { raw[k] = form.elements[k].value; });
+    C.FIELDS.concat(C.OPTIONAL).forEach(function (k) { raw[k] = form.elements[k].value; });
     raw.includeWear = form.elements.includeWear.checked;
     raw.useFills = state.settings.useFills;
     raw.odoUnit = state.settings.odoUnit;
@@ -889,9 +896,18 @@
     $('heightConv').textContent = h > 0 ? '= ' + Math.round(h) + ' cm (' + C.formatHeight(h) + ')' : '';
   }
 
+  function legText(s) {
+    var say = function (parts) {
+      return parts.map(function (x) { return x.miles + ' mi ' + (x.kind === 'cycle' ? 'cycled' : 'walked'); }).join(' + ') || 'nothing';
+    };
+    return 'Walked days: ' + say(C.commuteExercise('walked', s)) + '. Cycled days: ' + say(C.commuteExercise('cycled', s)) +
+      '. Drove to station: ' + say(C.commuteExercise('station', s)) + '. Set station to work to 0 if you don\'t walk that bit.';
+  }
+
   function updatePreview() {
     var r = readSettingsForm();
     var p = $('settingsPreview');
+    $('legHint').textContent = r.ok ? legText(r.settings) : '';
     if (!r.ok) { p.textContent = ''; return; }
     var eff = C.effectiveSettings(r.settings, state.stats, null, todayISO());
     var a = C.entrySaving('train', eff), b = C.entrySaving('station', eff);
