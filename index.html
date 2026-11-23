@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Commute Savings</title>
+  <meta name="description" content="Track the money saved by taking the train instead of driving.">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#111111" media="(prefers-color-scheme: dark)">
+  <meta name="color-scheme" content="light dark">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Savings">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="icons/icon-192.png" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Sofia+Sans+Condensed:wght@700;800;900&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="wrap">
+
+    <header class="hero">
+      <div class="hero-top">
+        <span class="eyebrow" id="monthName">This month</span>
+        <button class="icon-btn" id="openSettings" type="button" aria-label="Settings">
+          <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+        </button>
+      </div>
+      <p class="hero-figure"><span id="heroAmount">£0.00</span></p>
+      <p class="hero-sub"><span id="heroLabel">saved this month</span> · <strong id="heroDays">0 train days</strong></p>
+      <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <p class="progress-text"><span id="toGo">£90.00 to go</span><span class="muted" id="targetText">target £90.00</span></p>
+    </header>
+
+    <section class="card chart-card" aria-labelledby="chartTitle">
+      <h2 id="chartTitle" class="sr-only">This month's cumulative savings</h2>
+      <div id="chart" class="chart" role="img" aria-label="Cumulative savings chart"></div>
+    </section>
+
+    <section class="card" aria-labelledby="logTitle">
+      <div class="card-head">
+        <h2 id="logTitle">Log a day</h2>
+        <label class="date-field">
+          <span class="sr-only">Date</span>
+          <input type="date" id="logDate" required>
+        </label>
+      </div>
+      <div class="train-buttons">
+        <button type="button" class="big-btn" data-mode="train" data-label="Train, walked">
+          <span class="big-btn-label">Train, walked</span>
+          <span class="big-btn-amount" data-amount="train">+£0.00</span>
+        </button>
+        <button type="button" class="big-btn" data-mode="train" data-label="Train, cycled">
+          <span class="big-btn-label">Train, cycled</span>
+          <span class="big-btn-amount" data-amount="train">+£0.00</span>
+        </button>
+        <button type="button" class="big-btn" data-mode="station" data-label="Train, drove to station">
+          <span class="big-btn-label">Train, drove to station</span>
+          <span class="big-btn-amount" data-amount="station">+£0.00</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="otherTitle">
+      <h2 id="otherTitle">Other saving</h2>
+      <div class="chips" id="chips">
+        <button type="button" class="chip" data-label="Packed food on a trip" data-amount="15">Packed food on a trip <b>£15</b></button>
+        <button type="button" class="chip" data-label="Drove at 60 not 70" data-amount="1.50">Drove at 60 not 70 <b>£1.50</b></button>
+        <button type="button" class="chip" data-label="Skipped a Klarna buy" data-amount="20">Skipped a Klarna buy <b>£20</b></button>
+        <button type="button" class="chip" data-label="Cancelled a subscription" data-amount="5">Cancelled a subscription <b>£5</b></button>
+      </div>
+      <form id="otherForm" class="other-form" novalidate>
+        <label class="field grow">
+          <span>What</span>
+          <input type="text" id="otherLabel" maxlength="80" autocomplete="off" placeholder="e.g. Made coffee at home">
+        </label>
+        <label class="field amount">
+          <span>£</span>
+          <input type="text" id="otherAmount" inputmode="decimal" autocomplete="off" placeholder="0.00">
+        </label>
+        <button type="submit" class="btn primary">Add</button>
+        <p class="error" id="otherError" role="alert"></p>
+      </form>
+      <p class="hint">Uses the date above.</p>
+    </section>
+
+    <section class="card" aria-labelledby="totalsTitle">
+      <h2 id="totalsTitle">Running totals</h2>
+      <dl class="totals">
+        <div><dt>Today</dt><dd id="tToday">£0.00</dd></div>
+        <div><dt>This week</dt><dd id="tWeek">£0.00</dd></div>
+        <div><dt>This month</dt><dd id="tMonth">£0.00</dd></div>
+        <div><dt>This year</dt><dd id="tYear">£0.00</dd></div>
+        <div class="span2"><dt>All time</dt><dd id="tAll">£0.00</dd></div>
+      </dl>
+      <p class="hint" id="wearHint"></p>
+    </section>
+
+    <section class="card" aria-labelledby="listTitle">
+      <h2 id="listTitle">Log</h2>
+      <ul class="log" id="logList"></ul>
+      <p class="empty" id="logEmpty">Nothing logged yet. Tap a train button above to start.</p>
+      <button type="button" class="btn ghost full" id="showMore" hidden>Show more</button>
+    </section>
+
+    <section class="card" aria-labelledby="dataTitle">
+      <h2 id="dataTitle">Your data</h2>
+      <p class="hint">Everything stays on this phone. Use a backup file to move it to another device.</p>
+      <div class="data-grid">
+        <button type="button" class="btn" id="exportCsv">Export CSV</button>
+        <label class="btn file-btn">Import CSV<input type="file" id="importCsv" accept=".csv,text/csv"></label>
+        <button type="button" class="btn" id="backupJson">Backup (JSON)</button>
+        <label class="btn file-btn">Restore backup<input type="file" id="restoreJson" accept=".json,application/json"></label>
+      </div>
+      <p class="hint" id="storageNote"></p>
+    </section>
+
+    <section class="card settings" id="settings" aria-labelledby="settingsTitle" hidden>
+      <div class="card-head">
+        <h2 id="settingsTitle">Settings</h2>
+        <button type="button" class="btn ghost small" id="closeSettings">Close</button>
+      </div>
+      <p class="hint">Changes apply to new entries only. Days already logged keep the figures they were saved with.</p>
+      <form id="settingsForm" novalidate>
+        <div class="settings-grid">
+          <label class="field"><span>Petrol price (£ per litre)</span><input name="price" inputmode="decimal" autocomplete="off"><em class="error" data-err="price"></em></label>
+          <label class="field"><span>Van mpg (UK gallons)</span><input name="mpg" inputmode="decimal" autocomplete="off"><em class="error" data-err="mpg"></em></label>
+          <label class="field"><span>Commute round trip (miles)</span><input name="commuteMiles" inputmode="decimal" autocomplete="off"><em class="error" data-err="commuteMiles"></em></label>
+          <label class="field"><span>Train return fare (£)</span><input name="fare" inputmode="decimal" autocomplete="off"><em class="error" data-err="fare"></em></label>
+          <label class="field"><span>Drive to station round trip (miles)</span><input name="stationMiles" inputmode="decimal" autocomplete="off"><em class="error" data-err="stationMiles"></em></label>
+          <label class="field"><span>Mpg on short station runs</span><input name="stationMpg" inputmode="decimal" autocomplete="off"><em class="error" data-err="stationMpg"></em></label>
+          <label class="field"><span>Van wear (pence per mile)</span><input name="wearPence" inputmode="decimal" autocomplete="off"><em class="error" data-err="wearPence"></em></label>
+          <label class="field"><span>Monthly target (£)</span><input name="target" inputmode="decimal" autocomplete="off"><em class="error" data-err="target"></em></label>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" name="includeWear" role="switch">
+          <span class="toggle-track" aria-hidden="true"></span>
+          <span>Include van wear in totals</span>
+        </label>
+        <p class="hint" id="settingsPreview"></p>
+        <div class="settings-actions">
+          <button type="submit" class="btn primary">Save settings</button>
+          <button type="button" class="btn ghost" id="resetSettings">Restore defaults</button>
+        </div>
+      </form>
+    </section>
+
+    <footer class="foot">Commute Savings · works offline</footer>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden>
+    <span id="toastText"></span>
+    <button type="button" id="toastUndo">Undo</button>
+  </div>
+
+  <script src="calc.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
