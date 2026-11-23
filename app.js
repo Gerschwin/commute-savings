@@ -1344,6 +1344,238 @@
     window.addEventListener('resize', renderChart);
   }
 
+  /* ================= Google Drive sync ================= */
+  // The OAuth client ID from Google Cloud (it isn't secret). Empty until set up.
+  var GOOGLE_CLIENT_ID = '';
+  var SYNC_KEY = 'cs.sync', BASE_KEY = 'cs.syncBase';
+  var sync = { busy: false, applying: false, timer: null, again: false, msg: '', err: false, lastTry: 0 };
+
+  function syncLs(k, v) {
+    try {
+      if (v === undefined) return JSON.parse(localStorage.getItem(k));
+      if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v));
+    } catch (e) { return null; }
+  }
+  function syncInfo() { return syncLs(SYNC_KEY) || {}; }
+  function syncOn() { return !!syncInfo().on; }
+
+  function localData() {
+    return { settings: state.settings, entries: state.entries, fills: state.fills, exercise: state.exercise };
+  }
+  function cleanData(d) {
+    if (!d || typeof d !== 'object') return null;
+    var v = d.settings ? C.validateSettings(d.settings) : null;
+    return {
+      settings: v && v.ok ? v.settings : null,
+      entries: (d.entries || []).map(sanitiseEntry).filter(Boolean),
+      fills: (d.fills || []).map(sanitiseFill).filter(Boolean),
+      exercise: (d.exercise || []).map(sanitiseEx).filter(Boolean)
+    };
+  }
+  function fileData(d) {
+    return { app: 'commute-savings', version: 1, exported: new Date().toISOString(),
+      settings: d.settings, entries: d.entries, fills: d.fills, exercise: d.exercise };
+  }
+
+  /* Put merged data on this device, writing only the lists that changed. */
+  function applyData(d) {
+    sync.applying = true;
+    var jobs = [];
+    ['entries', 'fills', 'exercise'].forEach(function (n) {
+      if (!window.CSync.same(state[n], d[n])) { state[n] = d[n].slice(); jobs.push(store.replace(n, state[n])); }
+    });
+    if (d.settings && !window.CSync.same(state.settings, d.settings)) {
+      state.settings = Object.assign({}, d.settings);
+      jobs.push(store.saveSettings(state.settings));
+    }
+    sync.applying = false;
+    if (!jobs.length) return Promise.resolve(false);
+    sortEntries();
+    recalcStats();
+    render();
+    return Promise.all(jobs).then(function () { return true; });
+  }
+
+  function syncAgo(t) {
+    if (!t) return '';
+    var m = Math.round((Date.now() - t) / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return m + ' min ago';
+    var d = new Date(t), today = new Date();
+    var hm = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    return d.toDateString() === today.toDateString() ? 'at ' + hm : C.shortDate(C.toISO(d)) + ' ' + hm;
+  }
+
+  function renderSync() {
+    var box = $('syncBox');
+    if (!GOOGLE_CLIENT_ID || !window.CSync) { box.hidden = true; $('syncBtn').hidden = true; return; }
+    box.hidden = false;
+    var info = syncInfo(), on = !!info.on;
+    $('syncBtn').hidden = !on;
+    $('syncBtn').classList.toggle('spin', sync.busy);
+    $('syncDot').hidden = !(on && (sync.err || !window.CSync.auth.valid()));
+    $('syncDot').classList.toggle('err', sync.err);
+    $('syncOff').hidden = !on;
+    $('syncActions').hidden = !$('syncChoice').hidden;
+    $('syncGo').textContent = on ? (sync.busy ? 'Syncing…' : 'Sync now') : 'Turn on sync';
+    $('syncGo').disabled = sync.busy;
+    var text;
+    if (!on) text = 'Keep your phone and computer the same. Your data is saved in a hidden app folder in your own Google Drive, which only this app can see.';
+    else {
+      text = 'On' + (info.email ? ' for ' + info.email : '') + '. ';
+      if (sync.busy) text += 'Syncing…';
+      else if (sync.msg) text += sync.msg;
+      else if (info.last) text += 'Last synced ' + syncAgo(info.last) + '.';
+      if (!sync.busy && !sync.err && !window.CSync.auth.valid()) text += ' Tap Sync to update.';
+    }
+    $('syncText').textContent = text;
+  }
+
+  function syncFail(err) {
+    sync.busy = false;
+    sync.err = !(err && err.needTap);
+    sync.msg = err && err.needTap ? '' : (navigator.onLine === false ? 'Offline, it will sync when you have signal.' : (err && err.message || 'Sync failed') + '.');
+    renderSync();
+    return Promise.reject(err);
+  }
+
+  /* One sync: read Drive, merge, save here, then save to Drive. If another
+     device saved in between, start again (up to twice). */
+  function runSync(opts) {
+    opts = opts || {};
+    if (!GOOGLE_CLIENT_ID || !window.CSync) return Promise.resolve();
+    if (sync.busy) { sync.again = true; return Promise.resolve(); }
+    var S = window.CSync, A = S.auth, D = S.drive;
+    A.clientId = GOOGLE_CLIENT_ID;
+    A.hint = syncInfo().email || '';
+    sync.busy = true; sync.err = false; sync.msg = ''; sync.lastTry = Date.now();
+    clearTimeout(sync.timer);
+    renderSync();
+    var token, file, tries = 0, pulledTotal = 0;
+
+    function attempt() {
+      tries++;
+      return D.find(token).then(function (f) {
+        file = f;
+        return f ? D.read(token, f.id) : null;
+      }).then(function (raw) {
+        var remote = raw ? cleanData(raw) : null;
+        var base = syncLs(BASE_KEY);
+        var hasLocal = state.entries.length || state.fills.length || state.exercise.length;
+        var remoteCount = remote ? remote.entries.length + remote.fills.length + remote.exercise.length : 0;
+        if (!base && remoteCount && hasLocal && !opts.choice) return 'choose:' + remote.entries.length;
+        var merged = opts.choice === 'drive' && remote
+          ? { data: Object.assign({}, remote, { settings: remote.settings || state.settings }), pulled: remoteCount, dropped: 0 }
+          : S.merge(localData(), base, remote);
+        if (opts.choice === 'drive') opts.choice = 'combine'; // a retry merges from here on
+        return applyData(merged.data).then(function (changed) {
+          if (changed) pulledTotal += merged.pulled + merged.dropped;
+          var snap = S.snapshot(merged.data);
+          var upload = fileData(merged.data);
+          var same = remote && S.same(cleanData(upload), remote);
+          if (same) return snap;
+          var check = file ? D.version(token, file.id) : Promise.resolve(null);
+          return check.then(function (v) {
+            if (file && String(v) !== String(file.version) && tries < 3) return 'retry';
+            return (file ? D.update(token, file.id, upload) : D.create(token, upload)).then(function () { return snap; });
+          });
+        });
+      }).then(function (r) {
+        if (r === 'retry') return attempt();
+        return r;
+      });
+    }
+
+    return A.token(!!opts.interactive).then(function (t) {
+      token = t;
+      return attempt();
+    }).then(function (r) {
+      sync.busy = false;
+      if (typeof r === 'string' && r.indexOf('choose:') === 0) {
+        var n = Number(r.slice(7));
+        $('syncChoiceText').textContent = 'Google Drive already has data from another device (' + n + (n === 1 ? ' day' : ' days') +
+          '). This device has ' + state.entries.length + (state.entries.length === 1 ? ' day' : ' days') +
+          '. Use the Drive copy here, or combine the two?';
+        $('syncChoice').hidden = false;
+        renderSync();
+        $('syncBox').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+      $('syncChoice').hidden = true;
+      syncLs(BASE_KEY, r);
+      var info = syncInfo();
+      info.last = Date.now();
+      syncLs(SYNC_KEY, info);
+      renderSync();
+      if (!info.email) D.email(token).then(function (em) {
+        if (!em) return;
+        var i = syncInfo(); i.email = em; syncLs(SYNC_KEY, i); renderSync();
+      }).catch(function () {});
+      if (opts.interactive || pulledTotal) toast(pulledTotal ? 'Synced · ' + pulledTotal + (pulledTotal === 1 ? ' change' : ' changes') + ' from Drive' : 'Synced');
+      if (sync.again) { sync.again = false; scheduleSync(1000); }
+    }).catch(function (err) {
+      if (opts.interactive && !(err && err.needTap)) toast(err && err.message || 'Sync failed');
+      return syncFail(err).catch(function () {});
+    });
+  }
+
+  /* After any change, sync a few seconds later while signed in. */
+  function scheduleSync(ms) {
+    if (!GOOGLE_CLIENT_ID || !syncOn() || sync.applying) return;
+    clearTimeout(sync.timer);
+    if (!window.CSync.auth.valid()) { renderSync(); return; }
+    sync.timer = setTimeout(function () { runSync(); }, ms || 4000);
+  }
+  ['put', 'del', 'replace', 'saveSettings'].forEach(function (k) {
+    var fn = store[k];
+    store[k] = function () {
+      var p = fn.apply(store, arguments);
+      if (!sync.applying) scheduleSync();
+      return p;
+    };
+  });
+
+  function startSync() {
+    var info = syncInfo();
+    if (!info.on) { info.on = true; syncLs(SYNC_KEY, info); }
+    return runSync({ interactive: true });
+  }
+  $('syncGo').addEventListener('click', startSync);
+  $('syncBtn').addEventListener('click', startSync);
+  $('syncUseDrive').addEventListener('click', function () {
+    if (!confirm('Replace what is on this device with the Google Drive copy?')) return;
+    $('syncChoice').hidden = true;
+    runSync({ interactive: true, choice: 'drive' });
+  });
+  $('syncCombine').addEventListener('click', function () {
+    $('syncChoice').hidden = true;
+    runSync({ interactive: true, choice: 'combine' });
+  });
+  $('syncOff').addEventListener('click', function () {
+    if (!confirm('Stop syncing this device? Your data stays here and on Google Drive.')) return;
+    window.CSync.auth.signOut();
+    syncLs(SYNC_KEY, null);
+    syncLs(BASE_KEY, null);
+    sync.msg = ''; sync.err = false;
+    $('syncChoice').hidden = true;
+    renderSync();
+    toast('Sync turned off on this device');
+  });
+
+  function syncWake() {
+    if (!GOOGLE_CLIENT_ID || !syncOn() || sync.busy) return;
+    if (Date.now() - sync.lastTry < 30000) return;
+    if (window.CSync.auth.valid()) runSync();
+    else renderSync();
+  }
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') syncWake(); });
+  window.addEventListener('online', function () { sync.lastTry = 0; syncWake(); });
+
+  // Load Google's sign in script early, so tapping Sync can open its window straight away.
+  function preloadGoogle() {
+    if (GOOGLE_CLIENT_ID && window.CSync && navigator.onLine !== false) window.CSync.auth.load().catch(function () {});
+  }
+
   /* ================= boot ================= */
   resetDate();
   store.init()
@@ -1360,6 +1592,9 @@
       recalcStats();
       $('storageNote').textContent = store.mode() === 'idb' ? '' : 'Saving in basic browser storage (IndexedDB is unavailable here).';
       render();
+      renderSync();
+      if (syncOn()) { preloadGoogle(); syncWake(); }
+      else if (GOOGLE_CLIENT_ID) setTimeout(preloadGoogle, 3000);
       if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {});
     })
     .catch(function (err) { console.error(err); render(); toast('Could not load saved data.'); });

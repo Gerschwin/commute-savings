@@ -381,3 +381,17 @@ input { font-size: 16px; }
 .set-recalc { margin-top: 14px; }
 .install-card { margin-top: 14px; border: 1.5px solid var(--accent); }
 .install-card p { margin: 0; }
+
+/* ---------- sync ---------- */
+.sync-box { background: var(--bg); border-radius: 14px; padding: 14px; margin: 10px 0 4px; }
+.sync-box h3 { margin: 0 0 4px; font-size: 1rem; }
+.sync-box .hint { margin-top: 0; }
+.sync-box .settings-actions { margin-top: 10px; }
+.sync-choice { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 10px; }
+.sync-choice p { margin: 0; font-size: .95rem; }
+.sync-btn { position: relative; }
+.sync-btn.spin svg { animation: cs-spin 1s linear infinite; }
+@keyframes cs-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .sync-btn.spin svg { animation: none; opacity: .5; } }
+.sync-dot { position: absolute; top: 9px; right: 9px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); border: 2px solid var(--surface); }
+.sync-dot.err { background: #d9534f; }

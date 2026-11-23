@@ -3,7 +3,8 @@
 A small phone app that tracks the money you save each day by taking the train
 from Airdrie to Glasgow instead of driving the Vellfire, plus any other small
 savings. It is plain HTML, CSS and JavaScript with no build step, installs to
-your home screen and works fully offline. All data stays on your phone.
+your home screen and works fully offline. Data stays on your phone, unless you
+turn on Google Drive sync.
 
 ## What's in the folder
 
@@ -14,6 +15,8 @@ your home screen and works fully offline. All data stays on your phone.
 | `app.js` | Buttons, storage (IndexedDB, falls back to localStorage), chart, import and export |
 | `calc.js` | The pure money and date calculations |
 | `calc.test.js` | Tests for `calc.js`, run with Node |
+| `sync.js` | Google Drive sync: the merge, Google sign in and Drive calls |
+| `sync.test.js` | Tests for the merge, run with Node |
 | `manifest.json` | Tells the phone the app's name, icon and colours |
 | `sw.js` | Service worker, keeps a copy of the app so it opens offline |
 | `icons/` | App icons (SVG originals plus PNGs) |
@@ -178,6 +181,10 @@ You need [Node.js](https://nodejs.org) (any recent version).
 node calc.test.js
 ```
 
+```bash
+node sync.test.js
+```
+
 Every line should start with `ok`.
 
 ## Run it locally
@@ -269,7 +276,60 @@ appear at the top: tap **Install app**.
 Open it once while you have signal so it can save itself (and the fonts) for
 offline use.
 
+## Sync with Google Drive
+
+Keeps your phone and computer the same. Under **Your data**, tap **Turn on
+sync** and sign in with Google. Your data (days, fill-ups, exercise and
+settings) is saved as one file in a hidden app folder in your own Google
+Drive. Only this app can see that folder, and it doesn't show in your Drive
+file list.
+
+* After that, the round arrows button at the top syncs. Changes also sync by
+  themselves a few seconds after you make them, and when you open the app.
+* Google's sign in lasts an hour. After that a small dot shows on the sync
+  button: tap it and it signs you straight back in (usually no questions).
+* Each day, fill-up and exercise record is matched by its own ID, so a day
+  logged on the phone and another logged on the computer both survive.
+  Deleting a day deletes it everywhere. If the same thing was changed on both,
+  the device syncing wins.
+* Settings: whichever device changed them last.
+* The first time a second device syncs, if both have data, it asks whether to
+  **Use Drive's copy** (best for a computer with old figures) or **Combine
+  both**.
+* **Stop syncing** signs this device out. Your data stays on the device and on
+  Drive.
+* With no signal it just waits and syncs later.
+
+### Setting it up (once)
+
+Google needs an app ID for the sign in. It's free and takes about 10 minutes.
+
+1. Go to <https://console.cloud.google.com> and sign in with the Google
+   account you want the data kept in.
+2. At the top, open the project list, **New project**, name it
+   `Commute Savings`, **Create**, then make sure it's selected.
+3. Search the top bar for **Google Drive API**, open it and tap **Enable**.
+4. Search for **Google Auth Platform** and open it, then **Get started**:
+   app name `Commute Savings`, your email for support, **Next**, Audience
+   **External**, **Next**, your email again, agree, **Create**.
+5. **Audience** (left menu), under **Test users** tap **Add users** and add
+   your own Gmail address. Save.
+6. **Data Access**, **Add or remove scopes**, tick
+   `.../auth/drive.appdata` (search for "appdata"), **Update**, then **Save**.
+7. **Clients**, **Create client**: type **Web application**, name
+   `Commute Savings`. Under **Authorised JavaScript origins** add
+   `https://gerschwin.github.io` (exactly that, no slash at the end). Leave
+   redirect URIs empty. **Create**.
+8. Copy the **Client ID** (it ends in `.apps.googleusercontent.com`) and put
+   it in `app.js` at `var GOOGLE_CLIENT_ID = '';`, then deploy. It isn't a
+   secret, so it's fine in the code. The sync box only shows once it's set.
+
+When you first sign in, Google says the app isn't verified (it's your own,
+in testing). Tap **Continue**.
+
 ## Moving your data between devices
+
+With sync on you don't need this. Without it:
 
 Your entries live only in the browser on that phone. To move them:
 
