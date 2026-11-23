@@ -1006,7 +1006,7 @@
     b.addEventListener('click', function () { logTrain(b.dataset.mode, b.dataset.label); });
   });
 
-  document.querySelectorAll('.chip').forEach(function (c) {
+  document.querySelectorAll('#chips .chip').forEach(function (c) {
     c.addEventListener('click', function () {
       $('otherLabel').value = c.dataset.label;
       $('otherAmount').value = Number(c.dataset.amount).toFixed(2);
