@@ -2,7 +2,7 @@
   "name": "Commute Savings",
   "short_name": "Savings",
   "description": "Track the money saved by taking the train instead of driving.",
-  "id": "./",
+  "id": "/commute-savings/",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",
