@@ -58,7 +58,8 @@
           <input type="text" id="dayFare" inputmode="decimal" autocomplete="off">
         </label>
         <div class="fare-chips" id="fareChips">
-          <button type="button" class="chip" data-fare="return">Day return <b id="chipReturn">£5.45</b></button>
+          <button type="button" class="chip" data-fare="return"><span id="chipReturnName">BB1 return</span> <b id="chipReturn">£5.45</b></button>
+          <button type="button" class="chip" data-fare="full" id="chipFullBtn">Full <b id="chipFull">£6.10</b></button>
           <button type="button" class="chip" data-fare="singles">2 singles <b id="chipSingles">£11.00</b></button>
         </div>
         <p class="basis" id="basis"></p>
@@ -155,6 +156,42 @@
       <p class="hint" id="wearHint"></p>
     </section>
 
+    <section class="card" aria-labelledby="exTitle">
+      <div class="card-head">
+        <h2 id="exTitle">Exercise</h2>
+        <span class="streak" id="exStreak" hidden></span>
+      </div>
+      <p class="hint top" id="exProfileHint" hidden>Add your weight and height in <button type="button" class="linkish" id="exOpenSettings">Settings</button> to estimate calories and steps.</p>
+      <dl class="stats stats4">
+        <div><dt>Walked</dt><dd id="exWalk">0</dd></div>
+        <div><dt>Cycled</dt><dd id="exCycle">0</dd></div>
+        <div><dt>Steps</dt><dd id="exSteps">0</dd></div>
+        <div><dt>Calories</dt><dd id="exKcal">0</dd></div>
+      </dl>
+      <div class="progress ex-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="exProgress">
+        <div class="progress-fill" id="exProgressFill"></div>
+      </div>
+      <p class="progress-text"><span id="exGoalText"></span><span class="muted" id="exGoalTarget"></span></p>
+      <p class="motivator" id="exMotivator"></p>
+
+      <form id="exForm" class="ex-form" novalidate>
+        <fieldset class="seg span2">
+          <legend class="sr-only">Activity</legend>
+          <label><input type="radio" name="kind" value="walk" checked><span>Walk</span></label>
+          <label><input type="radio" name="kind" value="run"><span>Run</span></label>
+          <label><input type="radio" name="kind" value="cycle"><span>Cycle</span></label>
+        </fieldset>
+        <label class="field"><span>Miles</span><input name="miles" inputmode="decimal" autocomplete="off" placeholder="0.0"></label>
+        <label class="field" id="exStepsField"><span>or steps</span><input name="steps" inputmode="numeric" autocomplete="off" placeholder="0"></label>
+        <label class="field"><span>Minutes (optional)</span><input name="mins" inputmode="numeric" autocomplete="off" placeholder="auto"></label>
+        <label class="field"><span>Date</span><input type="date" name="date"></label>
+        <p class="hint span2" id="exPreview">Walked or cycled to the station? That's added for you when you log the day.</p>
+        <p class="error span2" id="exError" role="alert"></p>
+        <button type="submit" class="btn primary span2">Add exercise</button>
+      </form>
+      <ul class="log ex-list" id="exList"></ul>
+    </section>
+
     <section class="card" aria-labelledby="listTitle">
       <h2 id="listTitle">Log</h2>
       <ul class="log" id="logList"></ul>
@@ -189,17 +226,54 @@
               <p class="hint" id="kmplOut"></p>
             </details></div>
           <label class="field"><span>Commute round trip (miles)</span><input name="commuteMiles" inputmode="decimal" autocomplete="off"><em class="error" data-err="commuteMiles"></em></label>
-          <div class="field"><label for="setFare">Usual train return fare (£)</label><input id="setFare" name="fare" inputmode="decimal" autocomplete="off"><em class="error" data-err="fare"></em>
+          <div class="field"><label for="setFare">Full return fare (£)</label><input id="setFare" name="fare" inputmode="decimal" autocomplete="off"><em class="error" data-err="fare"></em>
             <details class="helper"><summary>Season ticket or Flexipass?</summary>
               <div class="helper-row"><input id="passPrice" inputmode="decimal" aria-label="Ticket price in pounds" placeholder="£ price"><input id="passDays" inputmode="numeric" aria-label="Days of travel it covers" placeholder="days"><button type="button" class="btn small" id="passUse">Use</button></div>
               <p class="hint" id="passOut">Enter what it cost and how many days you will actually travel on it.</p>
             </details></div>
+          <fieldset class="discount span-all">
+            <legend>Discount code</legend>
+            <label class="toggle">
+              <input type="checkbox" name="discountOn" role="switch">
+              <span class="toggle-track" aria-hidden="true"></span>
+              <span>Use the code's fare while it's active</span>
+            </label>
+            <div class="discount-grid">
+              <label class="field"><span>Code</span><input name="discountCode" autocomplete="off" maxlength="20" placeholder="e.g. BB1"></label>
+              <label class="field"><span>Return with code (£)</span><input name="discountFare" inputmode="decimal" autocomplete="off"><em class="error" data-err="discountFare"></em></label>
+              <label class="field span2"><span>Code ends (leave blank if not known)</span><input type="date" name="discountEnds"></label>
+            </div>
+          </fieldset>
           <label class="field"><span>Single fare, one way (£)</span><input name="single" inputmode="decimal" autocomplete="off"><em class="error" data-err="single"></em></label>
           <label class="field"><span>Drive to station round trip (miles)</span><input name="stationMiles" inputmode="decimal" autocomplete="off"><em class="error" data-err="stationMiles"></em></label>
           <label class="field"><span>Mpg on short station runs</span><input name="stationMpg" inputmode="decimal" autocomplete="off"><em class="error" data-err="stationMpg"></em></label>
           <label class="field"><span>Van wear (pence per mile)</span><input name="wearPence" inputmode="decimal" autocomplete="off"><em class="error" data-err="wearPence"></em></label>
           <label class="field"><span>Monthly target (£)</span><input name="target" inputmode="decimal" autocomplete="off"><em class="error" data-err="target"></em></label>
         </div>
+        <h3 class="settings-sub">Exercise</h3>
+        <div class="settings-grid">
+          <label class="field"><span>Walk to station and back (miles)</span><input name="walkMiles" inputmode="decimal" autocomplete="off"><em class="error" data-err="walkMiles"></em></label>
+          <label class="field"><span>Cycle to station and back (miles)</span><input name="cycleMiles" inputmode="decimal" autocomplete="off"><em class="error" data-err="cycleMiles"></em></label>
+          <label class="field"><span>Walking pace (mph)</span><input name="walkMph" inputmode="decimal" autocomplete="off"><em class="error" data-err="walkMph"></em></label>
+          <label class="field"><span>Cycling pace (mph)</span><input name="cycleMph" inputmode="decimal" autocomplete="off"><em class="error" data-err="cycleMph"></em></label>
+          <label class="field"><span>Active miles goal a month</span><input name="activeGoal" inputmode="decimal" autocomplete="off"><em class="error" data-err="activeGoal"></em></label>
+          <div class="field">
+            <label for="setWeight">Weight (optional)</label>
+            <div class="odo-row">
+              <input id="setWeight" name="weightKg" autocomplete="off" placeholder="e.g. 14 7">
+              <select name="weightUnit" aria-label="Weight unit">
+                <option value="st">st &amp; lb</option>
+                <option value="kg">kg</option>
+                <option value="lb">lb</option>
+              </select>
+            </div>
+            <em class="error" data-err="weightKg"></em>
+            <span class="conv" id="weightConv"></span>
+          </div>
+          <label class="field"><span>Height (optional)</span><input name="heightCm" autocomplete="off" placeholder="e.g. 5'10 or 178"><em class="error" data-err="heightCm"></em><span class="conv" id="heightConv"></span></label>
+        </div>
+        <p class="hint">Weight is used for calories and height for steps. Both stay on this phone.</p>
+
         <label class="toggle">
           <input type="checkbox" name="includeWear" role="switch">
           <span class="toggle-track" aria-hidden="true"></span>

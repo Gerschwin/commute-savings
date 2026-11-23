@@ -6,7 +6,7 @@
   /* ================= storage ================= */
   // IndexedDB with a localStorage fallback. Two lists (entries, fills) plus settings.
   var DB_NAME = 'commute-savings';
-  var LS = { entries: 'cs.entries', fills: 'cs.fills', settings: 'cs.settings' };
+  var LS = { entries: 'cs.entries', fills: 'cs.fills', exercise: 'cs.exercise', settings: 'cs.settings' };
 
   var store = (function () {
     var dbp = null;
@@ -17,12 +17,13 @@
       dbp = new Promise(function (resolve, reject) {
         if (!('indexedDB' in window)) return reject(new Error('no indexedDB'));
         var req;
-        try { req = indexedDB.open(DB_NAME, 2); } catch (e) { return reject(e); }
+        try { req = indexedDB.open(DB_NAME, 3); } catch (e) { return reject(e); }
         req.onupgradeneeded = function () {
           var db = req.result;
           if (!db.objectStoreNames.contains('entries')) db.createObjectStore('entries', { keyPath: 'id' });
           if (!db.objectStoreNames.contains('kv')) db.createObjectStore('kv');
           if (!db.objectStoreNames.contains('fills')) db.createObjectStore('fills', { keyPath: 'id' });
+          if (!db.objectStoreNames.contains('exercise')) db.createObjectStore('exercise', { keyPath: 'id' });
         };
         req.onsuccess = function () { resolve(req.result); };
         req.onerror = function () { reject(req.error); };
@@ -97,7 +98,8 @@
     settings: Object.assign({}, C.DEFAULTS),
     listLimit: 30,
     fills: [],
-    stats: null
+    stats: null,
+    exercise: []
   };
 
   function todayISO() { return C.toISO(new Date()); }
@@ -131,6 +133,8 @@
     ['fare', 'mpg', 'price'].forEach(function (k) {
       if (e[k] != null && isFinite(Number(e[k]))) out[k] = Number(e[k]);
     });
+    if (e.code) out.code = String(e.code).slice(0, 20);
+    if (e.ex) { var ex = sanitiseEx(Object.assign({ date: e.date }, e.ex)); if (ex) out.ex = exPart(ex); }
     return out;
   }
 
@@ -139,6 +143,31 @@
     var odo = Number(f.odo), litres = Number(f.litres), cost = Number(f.cost);
     if (!(odo > 0) || !(litres > 0) || !(cost > 0)) return null;
     return { id: String(f.id || uid()), date: f.date, ts: Number(f.ts) || Date.now(), odo: odo, litres: litres, cost: cost, full: !!f.full };
+  }
+
+  /* Exercise records. Commute walks/rides live on the train entry (entry.ex)
+     so undo and delete keep them together; other exercise is its own list. */
+  function sanitiseEx(x) {
+    if (!x || !C.isISODate(x.date)) return null;
+    var miles = Number(x.miles) || 0, steps = Number(x.steps) || 0;
+    if (!(miles > 0) && !(steps > 0)) return null;
+    return {
+      id: String(x.id || uid()), date: x.date, ts: Number(x.ts) || Date.now(),
+      kind: ['walk', 'run', 'cycle'].indexOf(x.kind) >= 0 ? x.kind : 'walk',
+      label: String(x.label || '').slice(0, 80),
+      miles: miles, steps: Math.round(steps), mins: Math.round(Number(x.mins) || 0),
+      kcal: x.kcal == null || !isFinite(Number(x.kcal)) ? null : Math.round(Number(x.kcal))
+    };
+  }
+  function exPart(x) { return { kind: x.kind, miles: x.miles, steps: x.steps, mins: x.mins, kcal: x.kcal }; }
+
+  /* Every exercise record, commute ones included, newest first. */
+  function allExercise() {
+    var list = state.exercise.slice();
+    state.entries.forEach(function (e) {
+      if (e.ex) list.push(Object.assign({ id: 'e:' + e.id, entryId: e.id, date: e.date, ts: e.ts, label: 'Commute' }, e.ex));
+    });
+    return list.sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (b.ts || 0) - (a.ts || 0); });
   }
 
   function recalcStats() {
@@ -155,7 +184,7 @@
 
   /* Settings a train day logged right now would use. */
   function current() {
-    return C.effectiveSettings(state.settings, state.stats, dayFare());
+    return C.effectiveSettings(state.settings, state.stats, dayFare(), selectedDate());
   }
 
   /* ================= DOM helpers ================= */
@@ -200,7 +229,8 @@
     render();
     store.put('entries', [entry]).catch(saveFailed);
     if (!silent) {
-      toast('Added ' + C.money(C.displayValue(entry, state.settings.includeWear)) + ' · ' + C.shortDate(entry.date), function () {
+      var exNote = entry.ex ? ' · ' + entry.ex.miles + ' mi ' + (entry.ex.kind === 'cycle' ? 'cycled' : 'walked') : '';
+      toast('Added ' + C.money(C.displayValue(entry, state.settings.includeWear)) + exNote + ' · ' + C.shortDate(entry.date), function () {
         removeEntry(entry.id, true);
         toast('Removed');
       });
@@ -240,10 +270,13 @@
     if (already && !confirm('A train day is already logged for ' + C.shortDate(date) + '. Add another?')) return;
     var eff = current();
     var s = C.entrySaving(mode, eff);
-    addEntry({
+    var entry = {
       id: uid(), date: date, ts: Date.now(), type: mode, label: label, fuel: s.fuel, wear: s.wear,
-      fare: C.round2(eff.fare), mpg: Math.round(eff.mpg * 10) / 10, price: Math.round(eff.price * 1000) / 1000
-    });
+      fare: C.round2(eff.fare), code: eff.fareCode || undefined, mpg: Math.round(eff.mpg * 10) / 10, price: Math.round(eff.price * 1000) / 1000
+    };
+    if (/walked/i.test(label)) entry.ex = C.exerciseCalc({ kind: 'walk', miles: state.settings.walkMiles }, state.settings);
+    if (/cycled/i.test(label)) entry.ex = C.exerciseCalc({ kind: 'cycle', miles: state.settings.cycleMiles }, state.settings);
+    addEntry(entry);
   }
 
   function parseAmount(str) {
@@ -276,14 +309,20 @@
     var eff = current();
     var tr = C.displayValue(C.entrySaving('train', eff), s.includeWear);
     var st = C.displayValue(C.entrySaving('station', eff), s.includeWear);
-    $('basis').textContent = 'Working out with ' + eff.mpg.toFixed(1) + ' mpg' + (eff.source.mpg === 'fills' ? ' (real)' : '') +
+    var usual = C.usualFare(s, selectedDate());
+    var basis = 'Ticket ' + C.money(eff.fare) + (eff.fareCode ? ' with ' + eff.fareCode : '') + '. ';
+    if (usual.expired) basis = 'Code ' + (s.discountCode || '') + ' ended ' + C.shortDate(s.discountEnds) + ', so the full fare is used. ';
+    $('basis').textContent = basis + 'Working out with ' + eff.mpg.toFixed(1) + ' mpg' + (eff.source.mpg === 'fills' ? ' (real)' : '') +
       ' and petrol at ' + (eff.price * 100).toFixed(1) + 'p a litre' + (eff.source.price === 'fills' ? ' (last fill)' : '') + '.';
-    $('dayFare').placeholder = state.settings.fare.toFixed(2);
-    $('chipReturn').textContent = C.money(state.settings.fare);
-    $('chipSingles').textContent = C.money(state.settings.single * 2);
+    $('dayFare').placeholder = usual.fare.toFixed(2);
+    $('chipReturnName').textContent = usual.code ? usual.code + ' return' : 'Day return';
+    $('chipReturn').textContent = C.money(usual.fare);
+    $('chipFull').textContent = C.money(s.fare);
+    $('chipFullBtn').hidden = !usual.code;
+    $('chipSingles').textContent = C.money(s.single * 2);
     var df = dayFare();
     document.querySelectorAll('[data-fare]').forEach(function (b) {
-      var v = b.dataset.fare === 'return' ? state.settings.fare : state.settings.single * 2;
+      var v = fareFor(b.dataset.fare);
       var on = df === null ? b.dataset.fare === 'return' : C.round2(v) === df;
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
@@ -300,6 +339,7 @@
 
     renderList();
     renderFuel();
+    renderExercise();
     renderChart();
   }
 
@@ -318,7 +358,7 @@
         el('div', null, [
           el('span', { class: 'when', text: C.shortDate(e.date) + (e.date.slice(0, 4) !== todayISO().slice(0, 4) ? ' ' + e.date.slice(0, 4) : '') }),
           el('span', { class: 'what', text: e.label || (e.type === 'custom' ? 'Other saving' : 'Train') }),
-          e.fare != null ? el('span', { class: 'sub', text: 'Ticket ' + C.money(e.fare) + (e.mpg ? ' · ' + e.mpg.toFixed(1) + ' mpg · ' + (e.price * 100).toFixed(1) + 'p/L' : '') }) : null
+          e.fare != null ? el('span', { class: 'sub', text: 'Ticket ' + C.money(e.fare) + (e.code ? ' (' + e.code + ')' : '') + (e.mpg ? ' · ' + e.mpg.toFixed(1) + ' mpg · ' + (e.price * 100).toFixed(1) + 'p/L' : '') }) : null
         ]),
         el('span', { class: 'amt' + (v < 0 ? ' neg' : ''), text: C.money(v) }),
         del
@@ -415,7 +455,7 @@
     var s = state.settings;
     $('fMpg').textContent = st.mpg ? st.mpg.toFixed(1) : '–';
     $('fPrice').textContent = st.price ? (st.price * 100).toFixed(1) + 'p' : '–';
-    var eff = C.effectiveSettings(s, st, null);
+    var eff = C.effectiveSettings(s, st, null, todayISO());
     $('fPerMile').textContent = st.mpg || st.price ? (C.fuelCostPerMile(eff.price, eff.mpg) * 100).toFixed(1) + 'p' : '–';
 
     var note;
@@ -528,9 +568,18 @@
     render();
   });
 
+  $('logDate').addEventListener('change', render);
+
+  function fareFor(kind) {
+    var s = state.settings;
+    if (kind === 'return') return C.usualFare(s, selectedDate()).fare;
+    if (kind === 'full') return s.fare;
+    return s.single * 2;
+  }
+
   document.querySelectorAll('[data-fare]').forEach(function (b) {
     b.addEventListener('click', function () {
-      var v = b.dataset.fare === 'return' ? state.settings.fare : state.settings.single * 2;
+      var v = fareFor(b.dataset.fare);
       $('dayFare').value = C.round2(v).toFixed(2);
       $('dayFare').setAttribute('aria-invalid', 'false');
       render();
@@ -543,19 +592,159 @@
     render();
   });
 
+  /* ================= exercise ================= */
+  var KIND_WORD = { walk: 'Walk', run: 'Run', cycle: 'Cycle' };
+
+  function fmtInt(n) { return Math.round(n).toLocaleString('en-GB'); }
+
+  /* A rotating, honest motivator built from this month's numbers. */
+  function motivator(t, s) {
+    var lines = [];
+    if (t.kcal >= 3500) lines.push('That\'s roughly ' + (t.kcal / 3500).toFixed(1) + ' lb of body fat worth of energy this month.');
+    if (t.kcal >= 230) lines.push('You\'ve burned off about ' + fmtInt(t.kcal / 230) + ' chocolate bar' + (t.kcal >= 460 ? 's' : '') + ' this month.');
+    if (t.kcal >= 200) lines.push('That\'s about ' + fmtInt(t.kcal / 200) + ' pint' + (t.kcal >= 400 ? 's' : '') + ' of lager worked off this month.');
+    if (t.steps >= 10000) lines.push(fmtInt(t.steps) + ' steps this month, about ' + (t.steps / 10000).toFixed(1) + ' days\' worth of the 10,000 a day target.');
+    if (t.miles > 0) lines.push(t.miles + ' miles under your own steam this month instead of sitting in traffic on the M8.');
+    if (t.streak >= 3) lines.push(t.streak + ' active days in a row. Keep it going tomorrow.');
+    if (!lines.length) return t.allMiles > 0 ? 'New month, fresh start. Walk or cycle to the station to get going.' : 'Walk or cycle to the station and it shows up here.';
+    var d = new Date();
+    return lines[(d.getDate() + d.getMonth()) % lines.length];
+  }
+
+  function renderExercise() {
+    var s = state.settings;
+    var list = allExercise();
+    var t = C.exerciseTotals(list, todayISO());
+    var noBody = !(s.weightKg > 0) || !(s.heightCm > 0);
+    $('exProfileHint').hidden = !noBody;
+    $('exWalk').innerHTML = (t.walk + t.run) + '<small>mi</small>';
+    $('exCycle').innerHTML = t.cycle + '<small>mi</small>';
+    $('exSteps').textContent = t.steps ? fmtInt(t.steps) : (s.heightCm > 0 ? '0' : '–');
+    $('exKcal').textContent = t.kcal ? fmtInt(t.kcal) : (s.weightKg > 0 ? '0' : '–');
+
+    var pct = s.activeGoal > 0 ? Math.min(100, t.miles / s.activeGoal * 100) : 0;
+    $('exProgressFill').style.width = pct + '%';
+    $('exProgress').setAttribute('aria-valuenow', String(Math.round(pct)));
+    var left = Math.round((s.activeGoal - t.miles) * 10) / 10;
+    $('exGoalText').textContent = left <= 0 ? 'Goal reached' : left + ' active miles to go';
+    $('exGoalText').className = left <= 0 ? 'reached' : '';
+    $('exGoalTarget').textContent = 'goal ' + s.activeGoal + ' mi';
+    $('exMotivator').textContent = motivator(t, s);
+    $('exStreak').hidden = t.streak < 2;
+    $('exStreak').textContent = t.streak + ' day streak';
+
+    var ul = $('exList');
+    ul.textContent = '';
+    list.slice(0, 8).forEach(function (x) {
+      var bits = [x.miles + ' mi'];
+      if (x.steps) bits.push(fmtInt(x.steps) + ' steps');
+      if (x.mins) bits.push(x.mins + ' min');
+      var children = [
+        el('div', null, [
+          el('span', { class: 'when', text: C.shortDate(x.date) + ' · ' + (x.entryId ? 'Commute' : (x.label || KIND_WORD[x.kind])) }),
+          el('span', { class: 'what', text: KIND_WORD[x.kind] + ', ' + bits.join(', ') })
+        ]),
+        el('span', { class: 'amt', text: x.kcal != null ? fmtInt(x.kcal) + ' kcal' : '' })
+      ];
+      if (x.entryId) {
+        children.push(el('span', { class: 'del', title: 'Delete the train day to remove this', 'aria-hidden': 'true' }));
+      } else {
+        var del = el('button', { type: 'button', class: 'del', 'aria-label': 'Delete ' + KIND_WORD[x.kind].toLowerCase() + ' on ' + C.shortDate(x.date) });
+        del.innerHTML = DELETE_ICON;
+        del.addEventListener('click', function () { removeExercise(x.id); });
+        children.push(del);
+      }
+      ul.appendChild(el('li', null, children));
+    });
+  }
+
+  function addExercise(x, silent) {
+    state.exercise.push(x);
+    render();
+    store.put('exercise', [x]).catch(saveFailed);
+    if (!silent) {
+      toast('Added ' + x.miles + ' mi ' + KIND_WORD[x.kind].toLowerCase() + (x.kcal != null ? ' · ' + fmtInt(x.kcal) + ' kcal' : ''),
+        function () { removeExercise(x.id, true); toast('Removed'); });
+    }
+  }
+
+  function removeExercise(id, silent) {
+    var x = null;
+    state.exercise = state.exercise.filter(function (r) { if (r.id === id) { x = r; return false; } return true; });
+    if (!x) return;
+    render();
+    store.del('exercise', id).catch(saveFailed);
+    if (!silent) toast('Deleted exercise', function () { addExercise(x, true); toast('Restored'); });
+  }
+
+  var exForm = $('exForm');
+  function exInput() {
+    return {
+      kind: exForm.elements.kind.value,
+      miles: parseFloat(exForm.elements.miles.value) || 0,
+      steps: parseInt(String(exForm.elements.steps.value).replace(/[,\s]/g, ''), 10) || 0,
+      mins: parseInt(exForm.elements.mins.value, 10) || 0
+    };
+  }
+  function exPreview() {
+    var inp = exInput();
+    $('exStepsField').hidden = inp.kind === 'cycle';
+    $('exError').textContent = '';
+    if (!inp.miles && !inp.steps) {
+      $('exPreview').textContent = 'Walked or cycled to the station? That\'s added for you when you log the day.';
+      return;
+    }
+    if (!inp.miles && !(state.settings.heightCm > 0)) {
+      $('exPreview').textContent = 'Add your height in Settings to turn steps into miles.';
+      return;
+    }
+    var r = C.exerciseCalc(inp, state.settings);
+    var bits = [r.miles + ' mi'];
+    if (r.steps && !inp.steps) bits.push('about ' + fmtInt(r.steps) + ' steps');
+    bits.push(r.mins + ' min');
+    if (r.kcal != null) bits.push('about ' + fmtInt(r.kcal) + ' kcal');
+    $('exPreview').textContent = bits.join(', ') + '.';
+  }
+  exForm.addEventListener('input', exPreview);
+  exForm.addEventListener('change', exPreview);
+  exForm.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var inp = exInput();
+    if (inp.kind === 'cycle') inp.steps = 0;
+    var err = '';
+    if (!inp.miles && !inp.steps) err = inp.kind === 'cycle' ? 'Enter the miles.' : 'Enter miles or steps.';
+    else if (!inp.miles && !(state.settings.heightCm > 0)) err = 'Add your height in Settings first, or enter miles.';
+    else if (inp.miles > 200 || inp.steps > 100000) err = 'That looks too big, check the figure.';
+    $('exError').textContent = err;
+    if (err) return;
+    var date = C.isISODate(exForm.elements.date.value) ? exForm.elements.date.value : todayISO();
+    var r = C.exerciseCalc(inp, state.settings);
+    addExercise(sanitiseEx(Object.assign({ id: uid(), ts: Date.now(), date: date }, r)));
+    ['miles', 'steps', 'mins'].forEach(function (k) { exForm.elements[k].value = ''; });
+    exPreview();
+  });
+  $('exOpenSettings').addEventListener('click', function () { openSettings(); });
+
   /* ================= settings form ================= */
   var form = $('settingsForm');
 
   function fillSettingsForm(s) {
     C.FIELDS.forEach(function (k) { form.elements[k].value = String(s[k]); });
     form.elements.includeWear.checked = !!s.includeWear;
+    form.elements.discountOn.checked = !!s.discountOn;
+    form.elements.discountCode.value = s.discountCode || '';
+    form.elements.discountEnds.value = s.discountEnds || '';
+    form.elements.weightUnit.value = s.weightUnit || 'st';
+    form.elements.weightKg.value = C.formatWeight(s.weightKg, s.weightUnit);
+    form.elements.heightCm.value = s.heightCm ? C.formatHeight(s.heightCm) : '';
     clearSettingsErrors();
+    updateBodyConv();
     updatePreview();
   }
 
   function clearSettingsErrors() {
     form.querySelectorAll('[data-err]').forEach(function (n) { n.textContent = ''; });
-    C.FIELDS.forEach(function (k) { form.elements[k].removeAttribute('aria-invalid'); });
+    C.FIELDS.concat(['weightKg', 'heightCm']).forEach(function (k) { form.elements[k].removeAttribute('aria-invalid'); });
   }
 
   function readSettingsForm() {
@@ -564,20 +753,42 @@
     raw.includeWear = form.elements.includeWear.checked;
     raw.useFills = state.settings.useFills;
     raw.odoUnit = state.settings.odoUnit;
-    return C.validateSettings(raw);
+    raw.discountOn = form.elements.discountOn.checked;
+    raw.discountCode = form.elements.discountCode.value;
+    raw.discountEnds = form.elements.discountEnds.value;
+    raw.weightUnit = form.elements.weightUnit.value;
+    var w = C.parseWeight(form.elements.weightKg.value, raw.weightUnit);
+    var h = C.parseHeight(form.elements.heightCm.value);
+    raw.weightKg = isFinite(w) ? w : 0;
+    raw.heightCm = isFinite(h) ? h : 0;
+    var r = C.validateSettings(raw);
+    if (!isFinite(w)) { r.ok = false; r.errors.weightKg = 'Enter a weight, e.g. 14 7 or 92'; }
+    if (!isFinite(h)) { r.ok = false; r.errors.heightCm = "Enter a height, e.g. 5'10 or 178"; }
+    if (r.settings.weightKg) r.settings.weightKg = Math.round(r.settings.weightKg * 10) / 10;
+    if (r.settings.heightCm) r.settings.heightCm = Math.round(r.settings.heightCm);
+    return r;
+  }
+
+  function updateBodyConv() {
+    var unit = form.elements.weightUnit.value;
+    var w = C.parseWeight(form.elements.weightKg.value, unit);
+    var h = C.parseHeight(form.elements.heightCm.value);
+    $('weightConv').textContent = w > 0 ? '= ' + (unit === 'kg' ? C.formatWeight(w, 'st') : C.formatWeight(w, 'kg')) : '';
+    $('heightConv').textContent = h > 0 ? '= ' + Math.round(h) + ' cm (' + C.formatHeight(h) + ')' : '';
   }
 
   function updatePreview() {
     var r = readSettingsForm();
     var p = $('settingsPreview');
     if (!r.ok) { p.textContent = ''; return; }
-    var eff = C.effectiveSettings(r.settings, state.stats, null);
+    var eff = C.effectiveSettings(r.settings, state.stats, null, todayISO());
     var a = C.entrySaving('train', eff), b = C.entrySaving('station', eff);
     p.textContent = (eff.source.mpg === 'fills' || eff.source.price === 'fills' ? 'With these settings and your fuel log' : 'With these settings') + ': walked or cycled ' + C.money(a.fuel) + ' fuel + ' + C.money(a.wear) +
       ' wear, drove to station ' + C.money(b.fuel) + ' fuel + ' + C.money(b.wear) + ' wear.';
   }
 
-  form.addEventListener('input', updatePreview);
+  form.addEventListener('input', function () { updatePreview(); updateBodyConv(); });
+  form.elements.weightUnit.addEventListener('change', updateBodyConv);
   form.addEventListener('submit', function (ev) {
     ev.preventDefault();
     clearSettingsErrors();
@@ -726,7 +937,7 @@
   });
 
   $('backupJson').addEventListener('click', function () {
-    var data = { app: 'commute-savings', version: 1, exported: new Date().toISOString(), settings: state.settings, entries: state.entries, fills: state.fills };
+    var data = { app: 'commute-savings', version: 1, exported: new Date().toISOString(), settings: state.settings, entries: state.entries, fills: state.fills, exercise: state.exercise };
     download('commute-savings-backup-' + todayISO() + '.json', JSON.stringify(data, null, 2), 'application/json');
   });
 
@@ -742,6 +953,11 @@
       if (!confirm(msg)) return;
       var prevEntries = state.entries.slice(), prevSettings = state.settings, prevFills = state.fills.slice();
       var restoreFills = Array.isArray(data.fills);
+      var prevEx = state.exercise.slice(), restoreEx = Array.isArray(data.exercise);
+      if (restoreEx) {
+        state.exercise = data.exercise.map(sanitiseEx).filter(Boolean);
+        store.replace('exercise', state.exercise).catch(saveFailed);
+      }
       if (restoreFills) {
         state.fills = data.fills.map(sanitiseFill).filter(Boolean);
         store.replace('fills', state.fills).catch(saveFailed);
@@ -759,6 +975,7 @@
         state.entries = prevEntries;
         state.settings = prevSettings;
         if (restoreFills) { state.fills = prevFills; store.replace('fills', prevFills).catch(saveFailed); }
+        if (restoreEx) { state.exercise = prevEx; store.replace('exercise', prevEx).catch(saveFailed); }
         recalcStats();
         sortEntries();
         render();
@@ -774,6 +991,8 @@
     var t = todayISO();
     fillForm.elements.date.max = t;
     if (!fillForm.elements.date.value) fillForm.elements.date.value = t;
+    exForm.elements.date.max = t;
+    if (!exForm.elements.date.value) exForm.elements.date.value = t;
     $('logDate').max = t;
     if (!$('logDate').value || $('logDate').value > t) $('logDate').value = t;
   }
@@ -799,10 +1018,11 @@
   /* ================= boot ================= */
   resetDate();
   store.init()
-    .then(function () { return Promise.all([store.load('entries'), store.loadSettings(), store.load('fills')]); })
+    .then(function () { return Promise.all([store.load('entries'), store.loadSettings(), store.load('fills'), store.load('exercise')]); })
     .then(function (res) {
       state.entries = (res[0] || []).map(sanitiseEntry).filter(Boolean);
       state.fills = (res[2] || []).map(sanitiseFill).filter(Boolean);
+      state.exercise = (res[3] || []).map(sanitiseEx).filter(Boolean);
       if (res[1]) {
         var v = C.validateSettings(res[1]);
         if (v.ok) state.settings = v.settings;

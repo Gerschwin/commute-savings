@@ -12,7 +12,11 @@
     price: 1.59,        // petrol £ per litre
     mpg: 22,            // van mpg (UK gallons)
     commuteMiles: 34,   // commute round trip
-    fare: 5.45,         // ScotRail Anytime Day Return with the BB1 discount code (Nov 2026)
+    fare: 6.1,          // full ScotRail return, Airdrie–Glasgow Queen Street ("from £6.10", Nov 2026)
+    discountOn: true,   // use the discount code fare while it is active
+    discountCode: 'BB1',
+    discountFare: 5.45, // Anytime Day Return with BB1 (Nov 2026)
+    discountEnds: '',   // last day the code works, "YYYY-MM-DD", or '' if not known
     single: 5.5,        // Anytime Day Single, Airdrie–Glasgow Queen Street (Nov 2026)
     stationMiles: 3.6,  // drive-to-station round trip
     stationMpg: 15,     // mpg on short cold station runs
@@ -20,7 +24,16 @@
     target: 90,         // monthly target £
     includeWear: false,
     useFills: true,     // use real mpg and price from the fuel log when there is enough data
-    odoUnit: 'mi'       // odometer unit for the fuel log ("mi" or "km")
+    odoUnit: 'mi',      // odometer unit for the fuel log ("mi" or "km")
+    // exercise
+    walkMiles: 3.6,     // walk to the station and back
+    cycleMiles: 3.6,    // cycle to the station and back
+    walkMph: 3,         // usual walking pace
+    cycleMph: 11,       // usual cycling pace
+    activeGoal: 30,     // active miles a month
+    weightKg: 0,        // 0 = not set (calories need it)
+    heightCm: 0,        // 0 = not set (steps need it)
+    weightUnit: 'st'    // how weight is shown: "kg", "st" (stone and pounds) or "lb"
   });
 
   function round2(n) {
@@ -254,16 +267,33 @@
 
   /* The settings a new entry is calculated with: saved settings, real
      fill-up figures if switched on and available, and the fare paid today. */
-  function effectiveSettings(settings, stats, farePaid) {
+  function effectiveSettings(settings, stats, farePaid, dateISO) {
     var s = Object.assign({}, settings);
     var src = { mpg: 'settings', price: 'settings' };
     if (settings.useFills && stats) {
       if (stats.mpg) { s.mpg = stats.mpg; src.mpg = 'fills'; }
       if (stats.price) { s.price = stats.price; src.price = 'fills'; }
     }
-    if (farePaid != null && isFinite(farePaid) && farePaid >= 0) s.fare = farePaid;
+    var usual = usualFare(settings, dateISO);
+    s.fullFare = settings.fare;
+    s.usualFare = usual.fare;
+    s.fareCode = usual.code;
+    if (farePaid != null && isFinite(farePaid) && farePaid >= 0) {
+      s.fare = farePaid;
+      if (round2(farePaid) !== round2(usual.fare)) s.fareCode = null;
+    } else s.fare = usual.fare;
     s.source = src;
     return s;
+  }
+
+  /* The return fare to use on a date: the discount code fare while the code
+     is switched on and not past its end date, otherwise the full fare. */
+  function usualFare(settings, dateISO) {
+    var on = settings.discountOn && settings.discountFare > 0 &&
+      (!settings.discountEnds || !dateISO || dateISO <= settings.discountEnds);
+    return on ? { fare: settings.discountFare, code: settings.discountCode || 'discount', expired: false }
+      : { fare: settings.fare, code: null,
+          expired: !!(settings.discountOn && settings.discountEnds && dateISO && dateISO > settings.discountEnds) };
   }
 
   function validateFill(raw) {
@@ -281,8 +311,144 @@
     return { ok: Object.keys(errors).length === 0, errors: errors, fill: f };
   }
 
+  /* ---------- exercise ---------- */
+  var M_PER_MILE = 1609.344;
+  var KG_PER_LB = 0.45359237;
+
+  /* MET values by speed (mph), from the Compendium of Physical Activities.
+     Interpolated between points, clamped at the ends. */
+  var MET_TABLE = {
+    walk: [[2, 2.8], [2.5, 3.0], [3, 3.5], [3.5, 4.3], [4, 5.0], [4.5, 7.0]],
+    run: [[4, 6.0], [5, 8.3], [6, 9.8], [7, 11.0], [8, 11.8], [9, 12.8], [10, 14.5]],
+    cycle: [[5.5, 3.5], [9.4, 5.8], [11, 6.8], [13, 8.0], [15, 10.0], [17, 12.0]]
+  };
+  var DEFAULT_MPH = { walk: 3, run: 6, cycle: 11 };
+
+  function metFor(kind, mph) {
+    var t = MET_TABLE[kind] || MET_TABLE.walk;
+    if (!(mph > 0)) mph = DEFAULT_MPH[kind] || 3;
+    if (mph <= t[0][0]) return t[0][1];
+    for (var i = 1; i < t.length; i++) {
+      if (mph <= t[i][0]) {
+        var a = t[i - 1], b = t[i];
+        return a[1] + (b[1] - a[1]) * (mph - a[0]) / (b[0] - a[0]);
+      }
+    }
+    return t[t.length - 1][1];
+  }
+
+  /* Step length in metres from height: walking about 41.5% of height, running about 65%. */
+  function stepLength(heightCm, kind) {
+    if (!(heightCm > 0)) return null;
+    return heightCm / 100 * (kind === 'run' ? 0.65 : 0.415);
+  }
+
+  /* Fill in an exercise record. Give miles or steps (walk/run), minutes optional.
+     Calories are "active" calories: (MET − 1) × kg × hours, i.e. on top of
+     what you'd burn sitting still. Null when weight is not set. */
+  function exerciseCalc(input, profile) {
+    var kind = ['walk', 'run', 'cycle'].indexOf(input.kind) >= 0 ? input.kind : 'walk';
+    var step = kind === 'cycle' ? null : stepLength(profile.heightCm, kind);
+    var miles = Number(input.miles) || 0;
+    var steps = Number(input.steps) || 0;
+    if (!miles && steps && step) miles = steps * step / M_PER_MILE;
+    if (!steps && miles && step) steps = Math.round(miles * M_PER_MILE / step);
+    if (kind === 'cycle') steps = 0;
+    var pace = kind === 'walk' ? profile.walkMph : kind === 'cycle' ? profile.cycleMph : DEFAULT_MPH.run;
+    var mins = Number(input.mins) || 0;
+    if (!mins && miles) mins = miles / (pace || DEFAULT_MPH[kind]) * 60;
+    var mph = mins ? miles / (mins / 60) : pace;
+    var kcal = null;
+    if (profile.weightKg > 0 && mins) {
+      kcal = Math.round((metFor(kind, mph) - 1) * profile.weightKg * (mins / 60));
+    }
+    return {
+      kind: kind,
+      miles: Math.round(miles * 100) / 100,
+      steps: Math.round(steps),
+      mins: Math.round(mins),
+      kcal: kcal
+    };
+  }
+
+  /* "92", "92kg", "14st 7", "14st 7lb", "14 7", "14.5", "203lb" -> kg. unit is the default unit. */
+  function parseWeight(str, unit) {
+    var s = String(str == null ? '' : str).toLowerCase().trim();
+    if (!s) return 0;
+    var nums = (s.match(/\d+(\.\d+)?/g) || []).map(Number);
+    if (!nums.length) return NaN;
+    if (/kg/.test(s)) unit = 'kg';
+    else if (/st/.test(s)) unit = 'st';
+    else if (/lb|pound/.test(s)) unit = 'lb';
+    if (unit === 'kg') return nums[0];
+    if (unit === 'lb') return nums[0] * KG_PER_LB;
+    return (nums[0] * 14 + (nums[1] || 0)) * KG_PER_LB;
+  }
+
+  function formatWeight(kg, unit) {
+    if (!(kg > 0)) return '';
+    if (unit === 'kg') return (Math.round(kg * 10) / 10) + ' kg';
+    var lb = kg / KG_PER_LB;
+    if (unit === 'lb') return Math.round(lb) + ' lb';
+    var st = Math.floor(lb / 14), rem = Math.round(lb - st * 14);
+    if (rem === 14) { st++; rem = 0; }
+    return st + ' st ' + rem + ' lb';
+  }
+
+  /* "178", "178cm", "5'10", "5 10", "5ft 10in", "5ft10", "1.78m" -> cm. */
+  function parseHeight(str) {
+    var s = String(str == null ? '' : str).toLowerCase().trim();
+    if (!s) return 0;
+    var nums = (s.match(/\d+(\.\d+)?/g) || []).map(Number);
+    if (!nums.length) return NaN;
+    if (/cm/.test(s)) return nums[0];
+    if (/\d\s*m\b/.test(s) || (nums.length === 1 && nums[0] < 3)) return nums[0] * 100;
+    if (/'|ft|foot|feet/.test(s) || (nums.length === 2 && nums[0] <= 8)) {
+      return (nums[0] * 12 + (nums[1] || 0)) * 2.54;
+    }
+    if (nums[0] <= 8) return nums[0] * 12 * 2.54; // "6" = 6 ft
+    return nums[0];
+  }
+
+  function formatHeight(cm) {
+    if (!(cm > 0)) return '';
+    var inches = Math.round(cm / 2.54);
+    return Math.floor(inches / 12) + ' ft ' + (inches % 12) + ' in';
+  }
+
+  /* Exercise summary for the month of todayISO plus all time.
+     records: [{date, kind, miles, steps, kcal}] */
+  function exerciseTotals(records, todayISO) {
+    var month = todayISO.slice(0, 7);
+    var t = { walk: 0, cycle: 0, run: 0, miles: 0, steps: 0, kcal: 0, activeDays: 0, allMiles: 0, allKcal: 0, streak: 0 };
+    var days = {};
+    records.forEach(function (r) {
+      t.allMiles += r.miles || 0;
+      t.allKcal += r.kcal || 0;
+      if (r.miles > 0 || r.steps > 0) days[r.date] = true;
+      if (r.date.slice(0, 7) !== month || r.date > todayISO) return;
+      t[r.kind] = (t[r.kind] || 0) + (r.miles || 0);
+      t.miles += r.miles || 0;
+      t.steps += r.steps || 0;
+      t.kcal += r.kcal || 0;
+    });
+    Object.keys(days).forEach(function (d) { if (d.slice(0, 7) === month && d <= todayISO) t.activeDays++; });
+    // Streak: weekdays in a row with some exercise, counting back from today.
+    // Weekends never break it but count if active. Today not done yet doesn't break it either.
+    var d = parseISO(todayISO);
+    for (var i = 0; i < 400; i++) {
+      var iso = toISO(d), dow = d.getDay(), weekend = dow === 0 || dow === 6;
+      if (days[iso]) t.streak++;
+      else if (!weekend && i > 0) break;
+      d.setDate(d.getDate() - 1);
+    }
+    ['walk', 'cycle', 'run', 'miles', 'allMiles'].forEach(function (k) { t[k] = Math.round(t[k] * 10) / 10; });
+    return t;
+  }
+
   /* ---------- settings validation ---------- */
-  var FIELDS = ['price', 'mpg', 'commuteMiles', 'fare', 'single', 'stationMiles', 'stationMpg', 'wearPence', 'target'];
+  var FIELDS = ['price', 'mpg', 'commuteMiles', 'fare', 'single', 'stationMiles', 'stationMpg', 'wearPence', 'target',
+    'walkMiles', 'cycleMiles', 'walkMph', 'cycleMph', 'activeGoal', 'discountFare'];
 
   function validateSettings(raw) {
     // Settings saved by an older version may lack newer fields: fill them from the defaults.
@@ -299,6 +465,19 @@
     clean.includeWear = !!raw.includeWear;
     clean.useFills = raw.useFills == null ? true : !!raw.useFills;
     clean.odoUnit = raw.odoUnit === 'km' ? 'km' : 'mi';
+    // Optional body figures: 0 means not set.
+    var w = Number(raw.weightKg) || 0, h = Number(raw.heightCm) || 0;
+    if (w && (w < 25 || w > 300)) errors.weightKg = 'That weight looks wrong';
+    else clean.weightKg = w;
+    if (h && (h < 100 || h > 250)) errors.heightCm = 'That height looks wrong';
+    else clean.heightCm = h;
+    clean.discountOn = !!raw.discountOn;
+    clean.discountCode = String(raw.discountCode || '').trim().slice(0, 20);
+    clean.discountEnds = isISODate(String(raw.discountEnds || '')) ? raw.discountEnds : '';
+    if (!errors.discountFare && !errors.fare && clean.discountFare > clean.fare) {
+      errors.discountFare = 'Should be less than the full fare';
+    }
+    clean.weightUnit = ['kg', 'st', 'lb'].indexOf(raw.weightUnit) >= 0 ? raw.weightUnit : 'st';
     return { ok: Object.keys(errors).length === 0, errors: errors, settings: clean };
   }
 
@@ -329,6 +508,15 @@
     kmplToMpg: kmplToMpg,
     fillStats: fillStats,
     effectiveSettings: effectiveSettings,
-    validateFill: validateFill
+    validateFill: validateFill,
+    metFor: metFor,
+    stepLength: stepLength,
+    exerciseCalc: exerciseCalc,
+    parseWeight: parseWeight,
+    formatWeight: formatWeight,
+    parseHeight: parseHeight,
+    formatHeight: formatHeight,
+    exerciseTotals: exerciseTotals,
+    usualFare: usualFare
   };
 });

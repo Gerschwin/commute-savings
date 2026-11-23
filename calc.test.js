@@ -3,8 +3,8 @@
 const assert = require('assert');
 const C = require('./calc.js');
 
-// The brief's worked examples used a £5.50 fare; the default is now the real £5.45 return.
-const D = Object.assign({}, C.DEFAULTS, { fare: 5.5 });
+// The brief's worked examples used a £5.50 fare and no discount code.
+const D = Object.assign({}, C.DEFAULTS, { fare: 5.5, discountOn: false });
 let passed = 0;
 function test(name, fn) {
   try { fn(); passed++; console.log('ok   ' + name); }
@@ -108,10 +108,30 @@ test('settings validation rejects zero, negative and blank', () => {
   assert.strictEqual(C.validateSettings(D).ok, true);
 });
 
-test('with the real £5.45 return: walked £5.72, drove to station £3.99', () => {
-  assert.strictEqual(C.DEFAULTS.fare, 5.45);
-  assert.strictEqual(C.entrySaving('train', C.DEFAULTS).fuel, 5.72);
-  assert.strictEqual(C.entrySaving('station', C.DEFAULTS).fuel, 3.99);
+test('with BB1 (£5.45): walked £5.72, drove to station £3.99', () => {
+  const eff = C.effectiveSettings(C.DEFAULTS, null, null, '2026-11-23');
+  assert.strictEqual(eff.fare, 5.45);
+  assert.strictEqual(eff.fareCode, 'BB1');
+  assert.strictEqual(C.entrySaving('train', eff).fuel, 5.72);
+  assert.strictEqual(C.entrySaving('station', eff).fuel, 3.99);
+});
+
+test('full £6.10 fare: walked £5.07, drove to station £3.34', () => {
+  assert.strictEqual(C.entrySaving('train', C.DEFAULTS).fuel, 5.07);
+  assert.strictEqual(C.entrySaving('station', C.DEFAULTS).fuel, 3.34);
+});
+
+test('discount code stops after its end date and when switched off', () => {
+  const s = Object.assign({}, C.DEFAULTS, { discountEnds: '2026-12-31' });
+  assert.strictEqual(C.usualFare(s, '2026-12-31').fare, 5.45);
+  const after = C.usualFare(s, '2027-01-01');
+  assert.strictEqual(after.fare, 6.1);
+  assert.strictEqual(after.expired, true);
+  assert.strictEqual(C.usualFare(Object.assign({}, s, { discountOn: false }), '2026-12-01').fare, 6.1);
+  // a typed fare overrides it, and drops the code label unless it matches
+  const typed = C.effectiveSettings(s, null, 11, '2026-12-01');
+  assert.strictEqual(typed.fare, 11);
+  assert.strictEqual(typed.fareCode, null);
 });
 
 test('km/L converts to UK mpg', () => {
@@ -177,6 +197,80 @@ test('older saved settings without newer fields still load', () => {
 test('two singles make the train dearer than a return', () => {
   const s = C.entrySaving('train', Object.assign({}, C.DEFAULTS, { fare: 11 }));
   assert.strictEqual(s.fuel, 0.17);
+});
+
+test('weight parsing: kg, stone and pounds', () => {
+  assert.strictEqual(C.round2(C.parseWeight('92', 'kg')), 92);
+  assert.strictEqual(C.round2(C.parseWeight('14st 7lb', 'kg')), 92.08);
+  assert.strictEqual(C.round2(C.parseWeight('14 7', 'st')), 92.08);
+  assert.strictEqual(C.round2(C.parseWeight('203', 'lb')), 92.08);
+  assert.strictEqual(C.parseWeight('', 'st'), 0);
+  assert.strictEqual(C.formatWeight(92.08, 'st'), '14 st 7 lb');
+});
+
+test('height parsing: cm and feet/inches', () => {
+  assert.strictEqual(C.round2(C.parseHeight("5'10")), 177.8);
+  assert.strictEqual(C.round2(C.parseHeight('5ft 10in')), 177.8);
+  assert.strictEqual(C.round2(C.parseHeight('5 10')), 177.8);
+  assert.strictEqual(C.parseHeight('178'), 178);
+  assert.strictEqual(C.parseHeight('1.78m'), 178);
+  assert.strictEqual(C.formatHeight(177.8), '5 ft 10 in');
+});
+
+test('MET lookup interpolates by speed', () => {
+  assert.strictEqual(C.metFor('walk', 3), 3.5);
+  assert.strictEqual(C.round2(C.metFor('walk', 3.25)), 3.9);
+  assert.strictEqual(C.metFor('cycle', 11), 6.8);
+  assert.strictEqual(C.metFor('cycle', 30), 12);
+});
+
+const ME = Object.assign({}, C.DEFAULTS, { weightKg: 90, heightCm: 178 });
+
+test('commute walk: 3.6 miles at 3 mph, 90 kg', () => {
+  const r = C.exerciseCalc({ kind: 'walk', miles: 3.6 }, ME);
+  assert.strictEqual(r.mins, 72);
+  assert.strictEqual(r.kcal, 270);           // (3.5 - 1) × 90 × 1.2
+  assert.strictEqual(r.steps, 7843);         // 3.6 mi ÷ 0.7387 m step
+});
+
+test('commute cycle: 3.6 miles at 11 mph, 90 kg, no steps', () => {
+  const r = C.exerciseCalc({ kind: 'cycle', miles: 3.6 }, ME);
+  assert.strictEqual(r.mins, 20);
+  assert.strictEqual(r.kcal, 171);           // 5.8 × 90 × 0.327 h
+  assert.strictEqual(r.steps, 0);
+});
+
+test('steps in gives miles out, and no weight means no calories', () => {
+  const r = C.exerciseCalc({ kind: 'walk', steps: 10000 }, Object.assign({}, ME, { weightKg: 0 }));
+  assert.strictEqual(r.miles, 4.59);
+  assert.strictEqual(r.kcal, null);
+});
+
+test('exercise totals and weekday streak', () => {
+  const recs = [
+    { date: '2026-11-23', kind: 'walk', miles: 3.6, steps: 7843, kcal: 270 }, // Mon
+    { date: '2026-11-20', kind: 'cycle', miles: 3.6, steps: 0, kcal: 171 },   // Fri
+    { date: '2026-11-19', kind: 'walk', miles: 2, steps: 4000, kcal: 150 },   // Thu
+    { date: '2026-11-17', kind: 'walk', miles: 1, steps: 2000, kcal: 75 },    // Tue (Wed missed)
+    { date: '2026-10-30', kind: 'walk', miles: 5, steps: 10000, kcal: 380 }
+  ];
+  const t = C.exerciseTotals(recs, '2026-11-23');
+  assert.strictEqual(t.walk, 6.6);
+  assert.strictEqual(t.cycle, 3.6);
+  assert.strictEqual(t.miles, 10.2);
+  assert.strictEqual(t.steps, 13843);
+  assert.strictEqual(t.kcal, 666);
+  assert.strictEqual(t.activeDays, 4);
+  assert.strictEqual(t.streak, 3);          // Mon, (weekend skipped), Fri, Thu; Wed breaks it
+  assert.strictEqual(t.allMiles, 15.2);
+  // a day with nothing logged yet today does not break the streak
+  assert.strictEqual(C.exerciseTotals(recs, '2026-11-24').streak, 3);
+});
+
+test('settings: weight and height are optional but sanity checked', () => {
+  assert.strictEqual(C.validateSettings(Object.assign({}, C.DEFAULTS, { weightKg: 0 })).ok, true);
+  assert.strictEqual(C.validateSettings(Object.assign({}, C.DEFAULTS, { weightKg: 5 })).ok, false);
+  assert.strictEqual(C.validateSettings(Object.assign({}, C.DEFAULTS, { heightCm: 178 })).settings.heightCm, 178);
 });
 
 console.log('\n' + passed + ' passed' + (process.exitCode ? ', some FAILED' : ''));

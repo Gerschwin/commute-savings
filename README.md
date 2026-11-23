@@ -39,11 +39,10 @@ With the brief's original figures (22 mpg, £1.59 a litre, £5.50 fare):
 * Walked or cycled: £5.67 fuel saving (plus £3.40 wear)
 * Drove to station: £3.94 fuel saving (plus £3.04 wear)
 
-The default fare is now the real ScotRail Anytime Day Return, £5.45 (Nov
-2026), which gives £5.72 and £3.99. That price uses the **BB1 discount code**
-when booking. If the code stops working, change the usual fare in Settings to
-the full price. The Anytime Day Single is £5.50, so a return is always the
-one to buy.
+Real ScotRail fares (Nov 2026): the Anytime Day Return is £5.45 with the
+**BB1 discount code**, which gives £5.72 and £3.99. Without the code the
+return is £6.10 (ScotRail's "from" price), which gives £5.07 and £3.34. The
+Anytime Day Single is £5.50, so a return is always the one to buy.
 
 Note: the original brief said the drove-to-station day comes to about £3.97.
 Using the formula above, it is £5.671 − £1.735 = £3.936, so £3.94. The tests
@@ -54,9 +53,18 @@ check £3.94.
 ### Ticket cost
 
 **Log a day** has a "Ticket cost today, both ways" box. Leave it blank to use
-your usual return fare, or tap **Day return** or **2 singles** (single fare ×
-2), or type what you actually paid. Each day stores the fare it used, so the
-log shows it.
+your usual return fare, or tap **BB1 return**, **Full** or **2 singles**
+(single fare × 2), or type what you actually paid. Each day stores the fare it
+used (and the code, if one applied), so the log shows it.
+
+### Discount code (BB1)
+
+In Settings, under **Discount code**: switch it on, enter the code, the return
+price with it, and the last day it works if you know it. While it's active,
+train days use the discounted fare. After the end date (or if you switch it
+off) they go back to the full return fare by themselves. The date checked is
+the day you're logging, so back-filling a day when the code was live still
+gets the discounted fare.
 
 Season ticket or Flexipass? In Settings, under the usual fare, open **Season
 ticket or Flexipass?**, enter the price and how many days you'll travel on it,
@@ -81,7 +89,31 @@ paid. Tick **Filled to full** if you brimmed it.
 If you'd rather type the trip computer figure, put it in Settings. If it shows
 km/L, use **Dashboard shows km/L?** to convert.
 
-Fill-ups are included in the JSON backup.
+Fill-ups and exercise are included in the JSON backup.
+
+## Exercise
+
+Walking or cycling to the station is logged as exercise automatically when you
+tap **Train, walked** or **Train, cycled** (distances are in Settings,
+3.6 miles there and back by default). You can add other walks, runs and rides
+in the **Exercise** card, by miles or by steps.
+
+The card shows this month's miles walked and cycled, steps, calories, a
+monthly active miles goal, a streak of active days (weekends never break it),
+and a changing line of encouragement.
+
+Add your **weight** (st & lb, kg or lb) and **height** (e.g. 5'10 or 178) in
+Settings for calories and steps. They stay on your phone.
+
+How it's estimated:
+
+* **Steps**: step length is about 41.5% of your height walking, 65% running.
+* **Calories**: MET values by speed from the Compendium of Physical
+  Activities. It counts *active* calories, (MET − 1) × weight in kg × hours,
+  meaning what you burned on top of sitting still, like a fitness watch does.
+  If you don't give minutes, it uses your usual pace from Settings.
+* These are estimates, good for spotting trends rather than counting every
+  calorie.
 
 ## Run the tests
 
