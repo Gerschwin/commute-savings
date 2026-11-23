@@ -143,7 +143,7 @@ counted twice. Saving again for the same day replaces the figure. Steps
 never change the money figures.
 
 Each logged day shows its miles, steps and calories, and the Calories box
-shows what the month's calories add up to in food. If you add your weight
+shows what the month's calories add up to as fat burned off (about 3,500 kcal a pound, in your Settings weight unit). If you add your weight
 and height later, earlier days fill in too.
 
 How it's estimated:

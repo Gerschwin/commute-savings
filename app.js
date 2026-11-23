@@ -753,32 +753,34 @@
   function fmtInt(n) { return Math.round(n).toLocaleString('en-GB'); }
 
   /* A rotating, honest motivator built from this month's numbers. */
-  /* A food the month's calories add up to, the biggest one that fits at least once. */
-  var FOODS = [
-    { kcal: 2500, one: 'a whole day of eating', many: 'whole days of eating' },
-    { kcal: 800, one: 'a takeaway curry', many: 'takeaway curries' },
-    { kcal: 330, one: 'a sausage roll', many: 'sausage rolls' },
-    { kcal: 230, one: 'a chocolate bar', many: 'chocolate bars' },
-    { kcal: 200, one: 'a pint of lager', many: 'pints of lager' },
-    { kcal: 90, one: 'a chocolate biscuit', many: 'chocolate biscuits' }
-  ];
-  function foodLine(kcal) {
+  /* Calories as body fat: about 3,500 kcal a pound (7,700 a kilo). A rule of
+     thumb, fine for a motivator. Shown in st & lb, lb or kg, as in Settings. */
+  function fatText(kcal) {
     if (!(kcal > 0)) return '';
-    for (var i = 0; i < FOODS.length; i++) {
-      var n = kcal / FOODS[i].kcal;
-      if (n >= 1) {
-        var whole = Math.floor(n * 2) / 2;
-        return '≈ ' + (whole === 1 ? FOODS[i].one : String(whole).replace('.5', '½') + ' ' + FOODS[i].many);
-      }
+    if (state.settings.weightUnit === 'kg') {
+      var kg = kcal / 7700;
+      return kg >= 1 ? kg.toFixed(1) + ' kg' : fmtInt(kg * 1000) + ' g';
     }
-    return '≈ ' + Math.round(kcal / 90 * 10) / 10 + ' of a biscuit';
+    var lb = kcal / 3500;
+    if (state.settings.weightUnit === 'st' && lb >= 14) {
+      var st = Math.floor(lb / 14), rest = Math.round(lb - st * 14);
+      if (rest === 14) { st++; rest = 0; }
+      return st + ' st' + (rest ? ' ' + rest + ' lb' : '');
+    }
+    if (lb >= 1) return lb.toFixed(1) + ' lb';
+    var oz = Math.round(lb * 16);
+    return oz >= 1 ? oz + ' oz' : 'under 1 oz';
+  }
+  function foodLine(kcal) {
+    var f = fatText(kcal);
+    return f ? '≈ ' + f + ' of fat' : '';
   }
 
   function motivator(t, s) {
     var lines = [];
-    if (t.kcal >= 3500) lines.push('That\'s roughly ' + (t.kcal / 3500).toFixed(1) + ' lb of body fat worth of energy this month.');
-    if (t.kcal >= 230) lines.push('You\'ve burned off about ' + fmtInt(t.kcal / 230) + ' chocolate bar' + (t.kcal >= 460 ? 's' : '') + ' this month.');
-    if (t.kcal >= 200) lines.push('That\'s about ' + fmtInt(t.kcal / 200) + ' pint' + (t.kcal >= 400 ? 's' : '') + ' of lager worked off this month.');
+    if (t.kcal > 0) lines.push('About ' + fatText(t.kcal) + ' of fat burned off this month.');
+    if (t.allKcal > t.kcal) lines.push('About ' + fatText(t.allKcal) + ' of fat burned off since you started.');
+    if (t.kcal > 0 && t.activeDays) lines.push('Keep this up for a year and that\'s about ' + fatText(t.kcal / Math.max(1, new Date().getDate()) * 365) + ' of fat.');
     if (t.steps >= 10000) lines.push(fmtInt(t.steps) + ' steps this month, about ' + (t.steps / 10000).toFixed(1) + ' days\' worth of the 10,000 a day target.');
     if (t.miles > 0) lines.push(t.miles + ' miles under your own steam this month instead of sitting in traffic on the M8.');
     if (t.streak >= 3) lines.push(t.streak + ' active days in a row. Keep it going tomorrow.');
