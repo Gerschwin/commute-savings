@@ -331,6 +331,34 @@
     return changes;
   }
 
+  /* After mpg or petrol price is changed in Settings: rework the past train
+     days that were worked out with the old Settings figure (stored mpg/price
+     equal to the old one, or not stored). Days that used fuel-log figures
+     are left alone. The fare paid is kept. */
+  function recalcFromSettings(entries, oldS, newS) {
+    var mpgChanged = Math.abs(oldS.mpg - newS.mpg) >= 0.05;
+    var priceChanged = Math.abs(oldS.price - newS.price) >= 0.0005;
+    if (!mpgChanged && !priceChanged) return [];
+    var changes = [];
+    entries.forEach(function (e) {
+      if (e.type !== 'train' && e.type !== 'station') return;
+      var mpg = e.mpg > 0 ? e.mpg : oldS.mpg;
+      var price = e.price > 0 ? e.price : oldS.price;
+      var usedMpg = mpgChanged && Math.abs(mpg - oldS.mpg) < 0.05;
+      var usedPrice = priceChanged && Math.abs(price - oldS.price) < 0.0005;
+      if (!usedMpg && !usedPrice) return;
+      if (usedMpg) mpg = newS.mpg;
+      if (usedPrice) price = newS.price;
+      var fare = e.fare != null && isFinite(e.fare) ? e.fare : usualFare(newS, e.date).fare;
+      var fuel = round2(trainSaving(e.type, Object.assign({}, newS, { mpg: mpg, price: price, fare: fare })).fuel);
+      if (Math.abs(fuel - (e.fuel || 0)) >= 0.005) {
+        changes.push({ id: e.id, date: e.date, oldFuel: e.fuel || 0, fuel: fuel,
+          mpg: Math.round(mpg * 10) / 10, price: Math.round(price * 1000) / 1000, fare: round2(fare) });
+      }
+    });
+    return changes;
+  }
+
   function validateFill(raw) {
     var errors = {};
     var num = function (v) { return parseFloat(String(v == null ? '' : v).replace(/[£,\s]/g, '')); };
@@ -547,6 +575,7 @@
     fillStats: fillStats,
     effectiveSettings: effectiveSettings,
     validateFill: validateFill,
+    recalcFromSettings: recalcFromSettings,
     metFor: metFor,
     stepLength: stepLength,
     exerciseCalc: exerciseCalc,

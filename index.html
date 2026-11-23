@@ -47,6 +47,14 @@
       <p class="progress-text"><span id="toGo">£90.00 to go</span><span class="muted" id="targetText">target £90.00</span></p>
     </header>
 
+    <section class="card recalc-panel set-recalc" id="setRecalc" hidden aria-live="polite">
+      <p id="setRecalcText"></p>
+      <div class="settings-actions">
+        <button type="button" class="btn primary" id="setRecalcGo">Update past days</button>
+        <button type="button" class="btn ghost" id="setRecalcNo">Leave them</button>
+      </div>
+    </section>
+
     <section class="card chart-card" aria-labelledby="chartTitle">
       <h2 id="chartTitle" class="sr-only">This month's cumulative savings</h2>
       <div id="chart" class="chart" role="img" aria-label="Cumulative savings chart"></div>

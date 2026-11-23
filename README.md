@@ -101,6 +101,15 @@ it, and the petrol price from the fill-up on or before that day. The fare
 you paid is kept. Other savings and exercise aren't touched. Nothing changes
 unless you press the button.
 
+### Changing mpg or petrol price in Settings
+
+If you change the mpg or petrol price in Settings, a box appears at the top
+offering to use the new figure for the past days that were worked out with
+the old one, with the effect shown first ("this month: £15.43 becomes
+£22.87"). **Update** applies it (with Undo), **Leave them** keeps the old
+figures. Days worked out from the fuel log, and the fares you paid, are
+never touched.
+
 If you'd rather type the trip computer figure, put it in Settings. If it shows
 km/L, use **Dashboard shows km/L?** to convert.
 
@@ -250,4 +259,5 @@ a few weeks. Taking a backup now and then is a good habit.
   phone (half circle), Dark (moon) and Light (sun). It's remembered on that
   phone.
 * **Settings**: the sliders button at the top right. Only numbers above 0 are
-  accepted. Changes only affect days you log afterwards.
+  accepted. Changes affect days you log afterwards, and a new mpg or petrol
+  price can also be applied to past days if you choose.

@@ -531,13 +531,7 @@
   $('recalcBtn').addEventListener('click', function () {
     var changes = C.recalcEntries(state.entries, state.fills, state.settings);
     if (!changes.length) return;
-    var inc = state.settings.includeWear, today = todayISO();
-    var before = C.totals(state.entries, today, inc), after = C.totals(withChanges(state.entries, changes), today, inc);
-    var text = changes.length + (changes.length === 1 ? ' day changes. ' : ' days change. ');
-    if (before.month !== after.month) text += 'This month: ' + C.money(before.month) + ' becomes ' + C.money(after.month) + '. ';
-    if (before.all !== before.month || after.all !== after.month) {
-      text += 'All time: ' + C.money(before.all) + ' becomes ' + C.money(after.all) + '. ';
-    }
+    var text = changes.length + (changes.length === 1 ? ' day changes. ' : ' days change. ') + changeSummary(changes);
     text += 'Each day uses the mpg of the tank you were on and the petrol price of the time. The fare you paid stays the same.';
     $('recalcText').textContent = text;
     $('recalcGo').textContent = 'Update ' + changes.length + (changes.length === 1 ? ' day' : ' days');
@@ -552,6 +546,21 @@
     var changes = C.recalcEntries(state.entries, state.fills, state.settings);
     $('recalcPanel').hidden = true;
     $('recalcBtn').hidden = false;
+    applyChanges(changes);
+  });
+
+  function changeSummary(changes) {
+    var inc = state.settings.includeWear, today = todayISO();
+    var before = C.totals(state.entries, today, inc), after = C.totals(withChanges(state.entries, changes), today, inc);
+    var text = '';
+    if (before.month !== after.month) text += 'This month: ' + C.money(before.month) + ' becomes ' + C.money(after.month) + '. ';
+    if (before.all !== before.month || after.all !== after.month) {
+      text += 'All time: ' + C.money(before.all) + ' becomes ' + C.money(after.all) + '. ';
+    }
+    return text;
+  }
+
+  function applyChanges(changes) {
     if (!changes.length) return;
     var ids = {};
     changes.forEach(function (c) { ids[c.id] = true; });
@@ -570,6 +579,35 @@
       render();
       toast('Recalculation undone');
     });
+  }
+
+  /* Offer to apply a new Settings mpg or petrol price to past days. */
+  var pendingSet = null;
+  function offerSettingsRecalc(oldS, newS) {
+    var changes = C.recalcFromSettings(state.entries, oldS, newS);
+    if (!changes.length) { $('setRecalc').hidden = true; pendingSet = null; return false; }
+    pendingSet = { oldS: oldS, newS: newS };
+    var what = [];
+    if (Math.abs(oldS.mpg - newS.mpg) >= 0.05) what.push(oldS.mpg + ' to ' + newS.mpg + ' mpg');
+    if (Math.abs(oldS.price - newS.price) >= 0.0005) what.push(C.money(oldS.price) + ' to ' + C.money(newS.price) + ' a litre');
+    var n = changes.length + (changes.length === 1 ? ' past day' : ' past days');
+    $('setRecalcText').textContent = 'Use ' + what.join(' and ') + ' for the ' + n + ' worked out with the old figure? ' +
+      changeSummary(changes) + 'Days from your fuel log and the fares you paid stay as they are.';
+    $('setRecalcGo').textContent = 'Update ' + n;
+    $('setRecalc').hidden = false;
+    return true;
+  }
+  $('setRecalcGo').addEventListener('click', function () {
+    $('setRecalc').hidden = true;
+    if (!pendingSet) return;
+    var changes = C.recalcFromSettings(state.entries, pendingSet.oldS, pendingSet.newS);
+    pendingSet = null;
+    applyChanges(changes);
+  });
+  $('setRecalcNo').addEventListener('click', function () {
+    $('setRecalc').hidden = true;
+    pendingSet = null;
+    toast('Past days left as they were');
   });
 
   var fillForm = $('fillForm');
@@ -862,11 +900,13 @@
       if (first) first.focus();
       return;
     }
+    var oldSettings = state.settings;
     state.settings = r.settings;
     store.saveSettings(r.settings).catch(saveFailed);
     render();
     closeSettings();
-    toast('Settings saved');
+    if (offerSettingsRecalc(oldSettings, r.settings)) toast('Settings saved');
+    else toast('Settings saved');
   });
   // km/L to mpg helper
   $('kmplUse').addEventListener('click', function () {

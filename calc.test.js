@@ -305,4 +305,32 @@ test('no recalculation until there is a real mpg', () => {
   assert.deepStrictEqual(C.recalcEntries([{ id: 'a', date: '2026-11-03', type: 'train', fuel: 5.67 }], one, C.DEFAULTS), []);
 });
 
+test('changing Settings mpg reworks only days that used the Settings figure', () => {
+  const S = Object.assign({}, C.DEFAULTS);
+  const N = Object.assign({}, S, { mpg: 18 });
+  const entries = [
+    { id: 'a', date: '2026-11-03', type: 'train', fuel: 5.72, fare: 5.45, mpg: 22, price: 1.59 },
+    { id: 'b', date: '2026-11-04', type: 'train', fuel: 5.72 },                                   // older entry, nothing stored
+    { id: 'c', date: '2026-11-05', type: 'train', fuel: 4.9, fare: 5.45, mpg: 19.4, price: 1.52 }, // from the fuel log
+    { id: 'd', date: '2026-11-05', type: 'other', fuel: 3 }
+  ];
+  const ch = C.recalcFromSettings(entries, S, N);
+  const by = Object.fromEntries(ch.map(c => [c.id, c]));
+  assert.deepStrictEqual(Object.keys(by).sort(), ['a', 'b']);
+  // 34 × 1.59 × 4.546 / 18 − 5.45
+  assert.strictEqual(by.a.fuel, 8.20);
+  assert.strictEqual(by.a.mpg, 18);
+  assert.strictEqual(by.b.fare, 5.45);
+  assert.deepStrictEqual(C.recalcFromSettings(entries, S, Object.assign({}, S, { target: 50 })), []);
+});
+
+test('changing Settings petrol price keeps each day\'s mpg', () => {
+  const S = Object.assign({}, C.DEFAULTS);
+  const N = Object.assign({}, S, { price: 1.45 });
+  const ch = C.recalcFromSettings([{ id: 'a', date: '2026-11-03', type: 'station', fuel: 3.99, fare: 5.45, mpg: 20, price: 1.59 }], S, N);
+  assert.strictEqual(ch.length, 1);
+  assert.strictEqual(ch[0].mpg, 20);
+  assert.strictEqual(ch[0].price, 1.45);
+});
+
 console.log('\n' + passed + ' passed' + (process.exitCode ? ', some FAILED' : ''));
