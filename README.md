@@ -171,8 +171,9 @@ the month before. The week and year totals stay as calendar week and year.
 ## Exercise
 
 Your commute exercise is logged automatically when you log a train day. In
-Settings, enter **Home to station** and **Station to work**, each way (1.6
-and 0.8 miles by default, Airdrie and Queen Street). Then:
+Settings under **Journeys**, enter the walk or cycle **home to station** and,
+under **Work**, the walk **station to work**, each way (1.6 and 0.8 miles,
+Airdrie and Queen Street). Then:
 
 * **Train, walked**: both legs walked there and back (4.8 miles)
 * **Train, cycled**: home leg cycled (3.2 miles), work leg walked (1.6 miles)

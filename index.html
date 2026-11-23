@@ -299,8 +299,7 @@
               <div class="helper-row"><input id="kmplIn" inputmode="decimal" aria-label="km per litre" placeholder="km/L"><button type="button" class="btn small" id="kmplUse">Use</button></div>
               <p class="hint" id="kmplOut"></p>
             </details></div>
-          <label class="field"><span>Commute round trip (miles)</span><input name="commuteMiles" inputmode="decimal" autocomplete="off"><em class="error" data-err="commuteMiles"></em></label>
-          <div class="field"><label for="setFare">Full return fare (£)</label><input id="setFare" name="fare" inputmode="decimal" data-money autocomplete="off"><em class="error" data-err="fare"></em>
+          <div class="field"><label for="setFare">Work return, full (£)</label><input id="setFare" name="fare" inputmode="decimal" data-money autocomplete="off"><em class="error" data-err="fare"></em>
             <details class="helper"><summary>Season ticket or Flexipass?</summary>
               <div class="helper-row"><input id="passPrice" inputmode="decimal" aria-label="Ticket price in pounds" placeholder="£ price"><input id="passDays" inputmode="numeric" aria-label="Days of travel it covers" placeholder="days"><button type="button" class="btn small" id="passUse">Use</button></div>
               <p class="hint" id="passOut">Enter what it cost and how many days you will actually travel on it.</p>
@@ -319,14 +318,26 @@
               <label class="field span2"><span>Code ends (leave blank if not known)</span><input type="date" name="discountEnds"></label>
             </div>
           </fieldset>
-          <label class="field"><span>Single fare, one way (£)</span><input name="single" inputmode="decimal" data-money autocomplete="off"><em class="error" data-err="single"></em></label>
-          <label class="field"><span>Drive to station round trip (miles)</span><input name="stationMiles" inputmode="decimal" autocomplete="off"><em class="error" data-err="stationMiles"></em></label>
-          <label class="field"><span>Mpg on short station runs</span><input name="stationMpg" inputmode="decimal" autocomplete="off"><em class="error" data-err="stationMpg"></em></label>
+          <label class="field"><span>Work single, full (£)</span><input name="single" inputmode="decimal" data-money autocomplete="off"><em class="error" data-err="single"></em></label>
           <label class="field"><span>Van wear (pence per mile)</span><input name="wearPence" inputmode="decimal" autocomplete="off"><em class="error" data-err="wearPence"></em></label>
           <label class="field"><span>Monthly target (£)</span><input name="target" inputmode="decimal" data-money autocomplete="off"><em class="error" data-err="target"></em></label>
           <fieldset class="discount span-all trips-set">
-            <legend>Saved trips</legend>
-            <p class="hint">Journeys you sometimes take by train instead of driving, picked in Log a day. Miles are what driving it there and back would be. Code fares are used while your discount code is active; leave them blank if the code doesn't apply.</p>
+            <legend>Journeys</legend>
+            <h4 class="journey-sub">Getting to the station</h4>
+            <div class="discount-grid">
+              <label class="field span2"><span>Walk or cycle, home to station, each way (miles)</span><input name="homeLeg" inputmode="decimal" autocomplete="off"><em class="error" data-err="homeLeg"></em></label>
+              <label class="field"><span>Drive there, round trip (miles)</span><input name="stationMiles" inputmode="decimal" autocomplete="off"><em class="error" data-err="stationMiles"></em></label>
+              <label class="field"><span>Mpg on that short run</span><input name="stationMpg" inputmode="decimal" autocomplete="off"><em class="error" data-err="stationMpg"></em></label>
+            </div>
+            <p class="hint">Used by every journey.</p>
+            <h4 class="journey-sub">Work</h4>
+            <div class="discount-grid">
+              <label class="field"><span>Driving it, round trip (miles)</span><input name="commuteMiles" inputmode="decimal" autocomplete="off"><em class="error" data-err="commuteMiles"></em></label>
+              <label class="field"><span>Walk, station to work, each way (miles)</span><input name="workLeg" inputmode="decimal" autocomplete="off"><em class="error" data-err="workLeg"></em></label>
+            </div>
+            <p class="hint" id="legHint"></p>
+            <h4 class="journey-sub">Other trips</h4>
+            <p class="hint">Journeys you sometimes take by train instead of driving, picked in Log a day. Miles are what driving it there and back would be. Code fares are used while your discount code is active; leave them blank if the code doesn't apply. A work day also walks the station to work leg above.</p>
             <div id="tripsList"></div>
             <button type="button" class="btn small" id="addTrip">Add a trip</button>
           </fieldset>
@@ -352,9 +363,6 @@
         </div>
         <h3 class="settings-sub">Exercise</h3>
         <div class="settings-grid">
-          <label class="field"><span>Home to station, each way (miles)</span><input name="homeLeg" inputmode="decimal" autocomplete="off"><em class="error" data-err="homeLeg"></em></label>
-          <label class="field"><span>Station to work, each way (miles)</span><input name="workLeg" inputmode="decimal" autocomplete="off"><em class="error" data-err="workLeg"></em></label>
-          <p class="hint span-all" id="legHint"></p>
           <label class="field"><span>Walking pace (mph)</span><input name="walkMph" inputmode="decimal" autocomplete="off"><em class="error" data-err="walkMph"></em></label>
           <label class="field"><span>Cycling pace (mph)</span><input name="cycleMph" inputmode="decimal" autocomplete="off"><em class="error" data-err="cycleMph"></em></label>
           <label class="field"><span>Active miles goal a month</span><input name="activeGoal" inputmode="decimal" autocomplete="off"><em class="error" data-err="activeGoal"></em></label>

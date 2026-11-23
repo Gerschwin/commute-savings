@@ -461,3 +461,7 @@ input { font-size: 16px; }
 .journey { margin: 0 0 14px; }
 .journey .hint { margin: 6px 0 0; }
 .journey .select { font-weight: 600; }
+
+.journey-sub { margin: 14px 0 6px; font-size: .95rem; font-weight: 700; }
+.trips-set .journey-sub:first-of-type { margin-top: 4px; }
+.trips-set > .hint { margin: 6px 0 0; }
