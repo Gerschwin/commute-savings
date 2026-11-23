@@ -12,7 +12,7 @@
     price: 1.59,        // petrol £ per litre
     mpg: 22,            // van mpg (UK gallons)
     commuteMiles: 34,   // commute round trip
-    fare: 6.1,          // full ScotRail return, Airdrie–Glasgow Queen Street ("from £6.10", Nov 2026)
+    fare: 6.1,          // full Anytime Day Return without a code, Airdrie–Glasgow Queen Street (Nov 2026)
     discountOn: true,   // use the discount code fare while it is active
     discountCode: 'BB1',
     discountFare: 5.45, // Anytime Day Return with BB1 (Nov 2026)
