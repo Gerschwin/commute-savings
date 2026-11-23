@@ -423,3 +423,10 @@ input { font-size: 16px; }
 .card-head .date-field input { padding: 8px 8px; max-width: 100%; }
 .card-head .date-field { margin-left: auto; display: flex; justify-content: flex-end; }
 .card-head .date-field input { text-align: right; }
+/* Date in the Log a day header: no box or calendar icon, the numbers end at the right edge. Tap it to change. */
+.card-head .date-field input {
+  border: 0; background: transparent; padding: 8px 0; min-height: 44px;
+  font-weight: 700; font-size: 1.05rem; color: var(--accent-text); text-align: right; cursor: pointer;
+}
+.card-head .date-field input::-webkit-calendar-picker-indicator { display: none; }
+.card-head .date-field input::-webkit-datetime-edit { padding: 0; }

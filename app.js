@@ -758,6 +758,10 @@
   });
 
   $('logDate').addEventListener('change', render);
+  // The calendar icon is hidden, so tapping anywhere on the date opens the picker.
+  $('logDate').addEventListener('click', function () {
+    try { if (this.showPicker) this.showPicker(); } catch (e) {}
+  });
   document.querySelectorAll('.route-opt').forEach(function (b) {
     b.addEventListener('click', function () { setRoute(b.dataset.route || ''); });
   });
