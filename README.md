@@ -371,7 +371,7 @@ a few weeks. Taking a backup now and then is a good habit.
   fare. Doesn't count as a train day.
 * **No commute**: for holidays, sick days or working from home. Saves
   nothing, but like a weekend it never breaks your exercise streak.
-* **Other saving**: tap a chip to fill it in, or type your own, then **Add**.
+* **Other saving**: type what it was and the amount, then **Add**.
 * **Undo**: every add or delete shows a message with **Undo** for 6 seconds.
 * **Dark mode**: the round button next to Settings switches between Match
   phone (half circle), Dark (moon) and Light (sun). It's remembered on that
