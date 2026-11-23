@@ -80,9 +80,11 @@
           <input type="date" id="logDate" required>
         </label>
       </div>
-      <div class="route-switch" id="routeSwitch" role="group" aria-label="Route" hidden>
-        <button type="button" class="route-opt" data-route="" aria-pressed="true">Work</button>
-        <button type="button" class="route-opt" data-route="r2" aria-pressed="false" id="route2Btn">Milngavie</button>
+      <div class="route-switch" id="routeSwitch" role="group" aria-label="Journey"></div>
+      <div class="one-off" id="oneOffBox" hidden>
+        <label class="field"><span>Where (optional)</span><input type="text" id="oneOffName" maxlength="30" autocomplete="off" placeholder="e.g. Edinburgh"></label>
+        <label class="field"><span>Miles driving, return</span><input type="text" id="oneOffMiles" inputmode="decimal" autocomplete="off" placeholder="e.g. 80"></label>
+        <p class="hint">Enter how far you'd have driven there and back, and what the ticket cost in the box below. Save it as a trip in Settings if you go often.</p>
       </div>
       <div class="fare-row">
         <label class="field fare-field">
@@ -114,12 +116,12 @@
             <span class="big-btn-label">Got a lift</span>
             <span class="big-btn-amount" data-amount="lift">+£0.00</span>
           </button>
-          <button type="button" class="big-btn small" data-mode="off" data-label="No commute">
+          <button type="button" class="big-btn small" data-mode="off" data-label="No commute" id="offBtn">
             <span class="big-btn-label">No commute</span>
             <span class="big-btn-amount">£0</span>
           </button>
         </div>
-        <p class="hint">No commute is for holidays, sick days or working from home. It saves nothing but keeps your exercise streak going.</p>
+        <p class="hint" id="offHint">No commute is for holidays, sick days or working from home. It saves nothing but keeps your exercise streak going.</p>
       </div>
     </section>
 
@@ -200,6 +202,7 @@
         <div><dt>This year</dt><dd id="tYear">£0.00</dd></div>
         <div class="span2"><dt>All time</dt><dd id="tAll">£0.00</dd></div>
       </dl>
+      <p class="hint" id="tripsNote" hidden></p>
       <p class="hint" id="wearHint"></p>
     </section>
 
@@ -318,22 +321,11 @@
           <label class="field"><span>Mpg on short station runs</span><input name="stationMpg" inputmode="decimal" autocomplete="off"><em class="error" data-err="stationMpg"></em></label>
           <label class="field"><span>Van wear (pence per mile)</span><input name="wearPence" inputmode="decimal" autocomplete="off"><em class="error" data-err="wearPence"></em></label>
           <label class="field"><span>Monthly target (£)</span><input name="target" inputmode="decimal" data-money autocomplete="off"><em class="error" data-err="target"></em></label>
-          <fieldset class="discount span-all">
-            <legend>Second route</legend>
-            <label class="toggle">
-              <input type="checkbox" name="route2On" role="switch">
-              <span class="toggle-track" aria-hidden="true"></span>
-              <span>Show it in Log a day</span>
-            </label>
-            <div class="discount-grid">
-              <label class="field span2"><span>Name</span><input name="route2Name" autocomplete="off" maxlength="30" placeholder="e.g. Milngavie"></label>
-              <label class="field span2"><span>Driving it, round trip (miles)</span><input name="route2Miles" inputmode="decimal" autocomplete="off"><em class="error" data-err="route2Miles"></em></label>
-              <label class="field"><span>Return, code (£)</span><input name="route2Fare" inputmode="decimal" data-money autocomplete="off"><em class="error" data-err="route2Fare"></em></label>
-              <label class="field"><span>Return, full (£)</span><input name="route2Full" inputmode="decimal" data-money autocomplete="off" placeholder="not known"><em class="error" data-err="route2Full"></em></label>
-              <label class="field"><span>Single, code (£)</span><input name="route2CodeSingle" inputmode="decimal" data-money autocomplete="off" placeholder="not known"><em class="error" data-err="route2CodeSingle"></em></label>
-              <label class="field"><span>Single, full (£)</span><input name="route2Single" inputmode="decimal" data-money autocomplete="off" placeholder="not known"><em class="error" data-err="route2Single"></em></label>
-            </div>
-            <p class="hint">For days you'd have driven a longer way, e.g. home to work, work to Milngavie, then home. The code return is used while your discount code is active; without the code, the full return (or the code fare if that's blank).</p>
+          <fieldset class="discount span-all trips-set">
+            <legend>Saved trips</legend>
+            <p class="hint">Journeys you sometimes take by train instead of driving, picked in Log a day. Miles are what driving it there and back would be. Code fares are used while your discount code is active; leave them blank if the code doesn't apply.</p>
+            <div id="tripsList"></div>
+            <button type="button" class="btn small" id="addTrip">Add a trip</button>
           </fieldset>
           <fieldset class="discount span-all pay-month">
             <legend>Month runs from</legend>

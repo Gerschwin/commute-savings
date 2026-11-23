@@ -30,13 +30,13 @@
     monthStart: 'payday', // 'calendar', 'payday' (a date) or 'lastFri'
     payDay: 28,           // payday date when monthStart is 'payday'
     payWeekend: true,     // payday on a weekend moves to the Friday before
-    route2On: true,     // a second route, picked per day in Log a day
-    route2Name: 'Milngavie',
-    route2Miles: 46.2,  // driving it: home to work 17, work to Milngavie 8.6, Milngavie to home 20.6
-    route2Fare: 6.8,    // Anytime Day Return Airdrie to Milngavie with the code (Nov 2026)
-    route2Full: 7.6,    // full return without the code, 0 = not known (the code fare is used)
-    route2CodeSingle: 6.55, // single with the code, 0 = half the code return
-    route2Single: 7.3,  // full single, 0 = half the full return
+    // Saved trips, picked per day in Log a day. miles = driving it, round trip.
+    // fare/single = full fares; codeFare/codeSingle = with the discount code (0 = no code fare).
+    // work = a work day (counts as a commute day and walks the station to work leg).
+    trips: [
+      // Home to work 17, work to Milngavie 8.6, Milngavie to home 20.6. Fares Nov 2026.
+      { id: 'milngavie', name: 'Milngavie', miles: 46.2, fare: 7.6, codeFare: 6.8, single: 7.3, codeSingle: 6.55, work: true }
+    ],
     homeLeg: 1.6,       // home to your station, each way (miles)
     workLeg: 0.8,       // Glasgow station to work, each way (miles); 0 if none
     walkMph: 3,         // usual walking pace
@@ -162,7 +162,7 @@
 
   /* Totals for today, this week (Monday start), month (calendar or pay month: period), year, all time. */
   function totals(entries, todayISO, includeWear, period) {
-    var t = { today: 0, week: 0, month: 0, year: 0, all: 0, trainDaysMonth: 0 };
+    var t = { today: 0, week: 0, month: 0, year: 0, all: 0, trainDaysMonth: 0, tripsMonth: 0, tripsAll: 0 };
     var weekStart = mondayOf(todayISO);
     var p = period || calendarPeriod(todayISO);
     var year = todayISO.slice(0, 4);
@@ -170,16 +170,18 @@
     entries.forEach(function (e) {
       var v = displayValue(e, includeWear);
       t.all += v;
+      if (e.trip) t.tripsAll += v;
       if (e.date.slice(0, 4) === year) t.year += v;
       if (e.date >= p.start && e.date <= p.end) {
         t.month += v;
-        if (e.type === 'train' || e.type === 'station') trainDates[e.date] = true;
+        if (e.trip) t.tripsMonth += v;
+        else if (e.type === 'train' || e.type === 'station') trainDates[e.date] = true;
       }
       if (e.date >= weekStart && e.date <= todayISO) t.week += v;
       if (e.date === todayISO) t.today += v;
     });
     t.trainDaysMonth = Object.keys(trainDates).length;
-    ['today', 'week', 'month', 'year', 'all'].forEach(function (k) { t[k] = round2(t[k]); });
+    ['today', 'week', 'month', 'year', 'all', 'tripsMonth', 'tripsAll'].forEach(function (k) { t[k] = round2(t[k]); });
     return t;
   }
 
@@ -349,17 +351,26 @@
     return s;
   }
 
-  /* Settings for a day on the second route: its driving miles and fares
-     stand in for the usual ones, so every sum works unchanged. */
-  function routeSettings(settings, route) {
-    if (route !== 'r2' || !settings.route2On) return settings;
-    var code = settings.route2Fare, full = settings.route2Full > 0 ? settings.route2Full : code;
-    return Object.assign({}, settings, {
-      commuteMiles: settings.route2Miles,
-      fare: full, single: settings.route2Single > 0 ? settings.route2Single : full / 2,
-      discountFare: code, discountSingle: settings.route2CodeSingle > 0 ? settings.route2CodeSingle : code / 2,
-      routeName: settings.route2Name || 'Second route'
-    });
+  function tripFor(settings, id) {
+    return (settings.trips || []).filter(function (t) { return t.id === id; })[0] || null;
+  }
+
+  /* Settings for a day on a saved trip (by id) or a one-off trip (an object):
+     its driving miles and fares stand in for the usual ones, so every sum
+     works unchanged. A trip that isn't a work day walks only the home leg. */
+  function routeSettings(settings, trip) {
+    if (typeof trip === 'string') trip = tripFor(settings, trip);
+    if (!trip) return settings;
+    var full = trip.fare > 0 ? trip.fare : 0, code = trip.codeFare > 0 ? trip.codeFare : 0;
+    var o = {
+      commuteMiles: Number(trip.miles) || 0,
+      fare: full, single: trip.single > 0 ? trip.single : full / 2,
+      routeName: trip.name || 'Trip', tripWork: !!trip.work, tripSingle: trip.single > 0
+    };
+    if (code) { o.discountFare = code; o.discountSingle = trip.codeSingle > 0 ? trip.codeSingle : code / 2; }
+    else o.discountOn = false;
+    if (!trip.work) o.workLeg = 0;
+    return Object.assign({}, settings, o);
   }
 
   /* The return fare to use on a date: the discount code fare while the code
@@ -395,7 +406,7 @@
       var fill = byDate[0];
       byDate.forEach(function (f) { if (f.date <= e.date) fill = f; });
       var price = fill.cost / fill.litres;
-      var fare = e.type === 'lift' ? 0 : e.fare != null && isFinite(e.fare) ? e.fare : usualFare(routeSettings(settings, e.route ? 'r2' : ''), e.date).fare;
+      var fare = e.type === 'lift' ? 0 : e.fare != null && isFinite(e.fare) ? e.fare : usualFare(settings, e.date).fare;
       var s = Object.assign({}, settings, { mpg: mpg, price: price, fare: fare }, e.miles > 0 ? { commuteMiles: e.miles } : {});
       var fuel = round2(trainSaving(e.type, s).fuel);
       if (Math.abs(fuel - (e.fuel || 0)) >= 0.005) {
@@ -424,7 +435,7 @@
       if (!usedMpg && !usedPrice) return;
       if (usedMpg) mpg = newS.mpg;
       if (usedPrice) price = newS.price;
-      var fare = e.type === 'lift' ? 0 : e.fare != null && isFinite(e.fare) ? e.fare : usualFare(routeSettings(newS, e.route ? 'r2' : ''), e.date).fare;
+      var fare = e.type === 'lift' ? 0 : e.fare != null && isFinite(e.fare) ? e.fare : usualFare(newS, e.date).fare;
       var fuel = round2(trainSaving(e.type, Object.assign({}, newS, { mpg: mpg, price: price, fare: fare }, e.miles > 0 ? { commuteMiles: e.miles } : {})).fuel);
       if (Math.abs(fuel - (e.fuel || 0)) >= 0.005) {
         changes.push({ id: e.id, date: e.date, oldFuel: e.fuel || 0, fuel: fuel,
@@ -623,9 +634,22 @@
     'homeLeg', 'walkMph', 'cycleMph', 'activeGoal', 'discountFare', 'discountSingle'];
   var OPTIONAL = ['workLeg'];
 
+  /* v1.14 kept one "second route" in route2 fields; turn it into a saved trip. */
+  function tripsFromOld(raw) {
+    if (!raw || raw.route2Miles == null) return null;
+    if (raw.route2On === false) return [];
+    var name = String(raw.route2Name || '').trim() || 'Milngavie';
+    if (name === 'Milngavie' && Number(raw.route2Miles) === 46.2) return DEFAULTS.trips.map(function (t) { return Object.assign({}, t); });
+    var code = Number(raw.route2Fare) || 0, full = Number(raw.route2Full) || code;
+    return [{ id: 'r2', name: name, miles: Number(raw.route2Miles) || 0, fare: full, codeFare: code,
+      single: Number(raw.route2Single) || 0, codeSingle: Number(raw.route2CodeSingle) || 0, work: true }];
+  }
+
   function validateSettings(raw) {
+    var oldTrips = raw && !Array.isArray(raw.trips) ? tripsFromOld(raw) : null;
     // Settings saved by an older version may lack newer fields: fill them from the defaults.
     raw = Object.assign({}, DEFAULTS, raw || {});
+    if (oldTrips) raw.trips = oldTrips;
     var errors = {}, clean = {};
     FIELDS.forEach(function (k) {
       var v = typeof raw[k] === 'number' ? raw[k] : parseFloat(String(raw[k] == null ? '' : raw[k]).trim());
@@ -664,17 +688,23 @@
     if (!errors.discountSingle && !errors.single && clean.discountSingle > clean.single) {
       errors.discountSingle = 'Should be less than the full single';
     }
-    clean.route2On = !!raw.route2On;
-    clean.route2Name = String(raw.route2Name || '').trim().slice(0, 30) || 'Second route';
-    ['route2Miles', 'route2Fare', 'route2Full', 'route2CodeSingle', 'route2Single'].forEach(function (k) {
-      var v = typeof raw[k] === 'number' ? raw[k] : parseFloat(String(raw[k] == null || raw[k] === '' ? '0' : raw[k]).replace(/[£,\s]/g, ''));
-      if (!isFinite(v) || v < 0) { errors[k] = 'Enter 0 or more'; return; }
-      clean[k] = v;
+    clean.trips = (Array.isArray(raw.trips) ? raw.trips : []).slice(0, 12).map(function (t, i) {
+      t = t || {};
+      var num = function (k) {
+        var v = typeof t[k] === 'number' ? t[k] : parseFloat(String(t[k] == null || t[k] === '' ? '0' : t[k]).replace(/[£,\s]/g, ''));
+        if (!isFinite(v) || v < 0) { errors['trips.' + i + '.' + k] = 'Enter 0 or more'; return 0; }
+        return v;
+      };
+      var out = {
+        id: String(t.id || ('t' + Date.now().toString(36) + i)).slice(0, 40),
+        name: String(t.name || '').trim().slice(0, 30) || 'Trip',
+        miles: num('miles'), fare: num('fare'), codeFare: num('codeFare'), single: num('single'), codeSingle: num('codeSingle'),
+        work: !!t.work
+      };
+      if (!errors['trips.' + i + '.miles'] && !(out.miles > 0)) errors['trips.' + i + '.miles'] = 'Enter the driving miles';
+      if (!errors['trips.' + i + '.fare'] && !(out.fare > 0)) errors['trips.' + i + '.fare'] = 'Enter the return fare';
+      return out;
     });
-    if (clean.route2On) {
-      if (!errors.route2Miles && !(clean.route2Miles > clean.stationMiles)) errors.route2Miles = 'Enter the driving miles, more than the station run';
-      if (!errors.route2Fare && !(clean.route2Fare > 0)) errors.route2Fare = 'Enter the return fare';
-    }
     clean.weightUnit = ['kg', 'st', 'lb'].indexOf(raw.weightUnit) >= 0 ? raw.weightUnit : 'st';
     return { ok: Object.keys(errors).length === 0, errors: errors, settings: clean };
   }
@@ -684,6 +714,7 @@
     DEFAULTS: DEFAULTS,
     FIELDS: FIELDS,
     routeSettings: routeSettings,
+    tripFor: tripFor,
     TYPES: TYPES,
     OPTIONAL: OPTIONAL,
     commuteExercise: commuteExercise,

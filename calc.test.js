@@ -443,8 +443,8 @@ test('totals and chart use the pay month', () => {
   assert.strictEqual(cum[29], 5);
 });
 
-test('Milngavie route: 46.2 miles driving, £6.80 BB1 return', () => {
-  const s = C.effectiveSettings(C.routeSettings(C.DEFAULTS, 'r2'), null, null, '2026-11-23');
+test('Milngavie trip: 46.2 miles driving, £6.80 BB1 return', () => {
+  const s = C.effectiveSettings(C.routeSettings(C.DEFAULTS, 'milngavie'), null, null, '2026-11-23');
   assert.strictEqual(s.commuteMiles, 46.2);
   assert.strictEqual(s.fare, 6.8);
   assert.strictEqual(s.fareCode, 'BB1');
@@ -453,35 +453,58 @@ test('Milngavie route: 46.2 miles driving, £6.80 BB1 return', () => {
   assert.deepStrictEqual(C.entrySaving('lift', s), { fuel: 15.18, wear: 4.62 });
 });
 
-test('second route off or not picked leaves the usual commute', () => {
+test('no trip picked leaves the usual commute', () => {
   assert.strictEqual(C.routeSettings(C.DEFAULTS, '').commuteMiles, 34);
-  assert.strictEqual(C.routeSettings(Object.assign({}, C.DEFAULTS, { route2On: false }), 'r2').commuteMiles, 34);
+  assert.strictEqual(C.routeSettings(C.DEFAULTS, 'nope').commuteMiles, 34);
 });
 
-test('second route uses the full return once the code ends', () => {
-  const st = Object.assign({}, C.DEFAULTS, { discountEnds: '2026-12-31', route2Full: 7.6 });
-  assert.strictEqual(C.usualFare(C.routeSettings(st, 'r2'), '2027-01-05').fare, 7.6);
-  assert.strictEqual(C.usualFare(C.routeSettings(Object.assign({}, st, { route2Full: 0 }), 'r2'), '2027-01-05').fare, 6.8);
+test('trip uses the full fares once the code ends', () => {
+  const st = Object.assign({}, C.DEFAULTS, { discountEnds: '2026-12-31' });
+  const u = C.usualFare(C.routeSettings(st, 'milngavie'), '2027-01-05');
+  assert.deepStrictEqual([u.fare, u.single], [7.6, 7.3]);
+  assert.strictEqual(C.usualFare(C.routeSettings(st, 'milngavie'), '2026-11-23').single, 6.55);
 });
 
-test('recalc keeps a route day on its own miles', () => {
+test('a trip with no code fare never uses the code', () => {
+  const trip = { name: 'Edinburgh', miles: 80, fare: 16.5, codeFare: 0, work: false };
+  const r = C.routeSettings(C.DEFAULTS, trip);
+  const u = C.usualFare(r, '2026-11-23');
+  assert.deepStrictEqual([u.fare, u.code], [16.5, null]);
+  assert.strictEqual(r.workLeg, 0);   // not a work day: no station to work walk
+  assert.strictEqual(r.tripWork, false);
+  // 80 mi at 22 mpg and £1.59 = £26.28, less £16.50
+  assert.strictEqual(C.entrySaving('train', C.effectiveSettings(r, null, null, '2026-11-23')).fuel, 9.78);
+});
+
+test('recalc keeps a trip day on its own miles', () => {
   const e = { id: 'r', date: '2026-11-23', type: 'train', fuel: 8.38, fare: 6.8, mpg: 22, price: 1.59, route: 'Milngavie', miles: 46.2 };
   const ch = C.recalcFromSettings([e], C.DEFAULTS, Object.assign({}, C.DEFAULTS, { mpg: 25 }));
-  // 46.2 mi at 25 mpg = £13.36, less £6.80
   assert.strictEqual(ch[0].fuel, 6.56);
 });
 
-test('Milngavie fares: £7.60 full return, singles £6.55 BB1 and £7.30', () => {
-  const r = C.routeSettings(C.DEFAULTS, 'r2');
-  assert.strictEqual(C.usualFare(r, '2026-11-23').single, 6.55);
-  const off = C.routeSettings(Object.assign({}, C.DEFAULTS, { discountOn: false }), 'r2');
-  assert.deepStrictEqual([C.usualFare(off, '2026-11-23').fare, C.usualFare(off, '2026-11-23').single], [7.6, 7.3]);
+test('old second route settings become a saved trip', () => {
+  const old = Object.assign({}, C.DEFAULTS, { route2On: true, route2Name: 'Milngavie', route2Miles: 46.2, route2Fare: 6.8, route2Full: 0 });
+  delete old.trips;
+  const v = C.validateSettings(old);
+  assert.ok(v.ok);
+  assert.deepStrictEqual(v.settings.trips.map(t => [t.name, t.miles, t.fare, t.codeFare, t.work]), [['Milngavie', 46.2, 7.6, 6.8, true]]);
+  const off = Object.assign({}, old, { route2On: false });
+  assert.deepStrictEqual(C.validateSettings(off).settings.trips, []);
 });
 
-test('second route settings are checked', () => {
-  const bad = C.validateSettings(Object.assign({}, C.DEFAULTS, { route2Miles: '', route2Fare: '' }));
-  assert.ok(bad.errors.route2Miles && bad.errors.route2Fare);
-  assert.ok(C.validateSettings(Object.assign({}, C.DEFAULTS, { route2On: false, route2Miles: '' })).ok);
+test('saved trips are checked', () => {
+  const bad = C.validateSettings(Object.assign({}, C.DEFAULTS, { trips: [{ name: 'X', miles: '', fare: '' }] }));
+  assert.ok(bad.errors['trips.0.miles'] && bad.errors['trips.0.fare']);
+  assert.ok(C.validateSettings(Object.assign({}, C.DEFAULTS, { trips: [] })).ok);
+});
+
+test('trip days count separately and not as train days', () => {
+  const p = C.periodFor('2026-11-23', C.DEFAULTS);
+  const t = C.totals([
+    { date: '2026-11-20', type: 'train', fuel: 5, wear: 0 },
+    { date: '2026-11-21', type: 'train', fuel: 9.78, wear: 0, trip: true, route: 'Edinburgh' }
+  ], '2026-11-23', false, p);
+  assert.deepStrictEqual([t.month, t.tripsMonth, t.tripsAll, t.trainDaysMonth], [14.78, 9.78, 9.78, 1]);
 });
 
 console.log('\n' + passed + ' passed' + (process.exitCode ? ', some FAILED' : ''));

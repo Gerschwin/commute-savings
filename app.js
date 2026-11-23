@@ -136,6 +136,7 @@
     if (e.code) out.code = String(e.code).slice(0, 20);
     if (e.route) out.route = String(e.route).slice(0, 30);
     if (Number(e.miles) > 0) out.miles = Number(e.miles);
+    if (e.trip) out.trip = true;
     ['ex', 'ex2'].forEach(function (k) {
       if (e[k]) { var ex = sanitiseEx(Object.assign({ date: e.date }, e[k])); if (ex) out[k] = exPart(ex); }
     });
@@ -231,13 +232,51 @@
     return C.effectiveSettings(routeNow(), state.stats, dayFare(), selectedDate());
   }
 
-  /* Second route picked in Log a day ('' = the usual commute). */
+  /* Journey picked in Log a day: '' = the usual commute, a saved trip's id, or 'oneoff'. */
   var logRoute = '';
-  function routeNow() { return C.routeSettings(state.settings, state.settings.route2On ? logRoute : ''); }
+  function oneOffTrip() {
+    var m = parseFloat(String($('oneOffMiles').value).replace(/[,\s]/g, ''));
+    return { name: $('oneOffName').value.trim().slice(0, 30) || 'One-off trip', miles: m > 0 ? m : 0, fare: 0, work: false };
+  }
+  function routeNow() {
+    if (logRoute === 'oneoff') return C.routeSettings(state.settings, oneOffTrip());
+    return C.routeSettings(state.settings, logRoute);
+  }
+  /* A one-off trip can't be worked out until it has miles and a fare. */
+  function oneOffMissing() {
+    if (logRoute !== 'oneoff') return '';
+    if (!(oneOffTrip().miles > 0)) return 'Enter the driving miles for this trip.';
+    if (dayFare() === null) return 'Enter what the ticket cost.';
+    return '';
+  }
   function setRoute(r) {
     logRoute = r;
     $('dayFare').value = '';
+    if (r !== 'oneoff') { $('oneOffName').value = ''; $('oneOffMiles').value = ''; }
     render();
+  }
+  var routeSig = '';
+  function renderRoutes() {
+    var trips = state.settings.trips || [];
+    if (logRoute && logRoute !== 'oneoff' && !C.tripFor(state.settings, logRoute)) logRoute = '';
+    var opts = [{ id: '', name: 'Work' }].concat(trips.map(function (t) { return { id: t.id, name: t.name }; }), [{ id: 'oneoff', name: 'One-off' }]);
+    var sig = JSON.stringify(opts);
+    if (sig !== routeSig) {
+      routeSig = sig;
+      var box = $('routeSwitch');
+      box.textContent = '';
+      var n = opts.length;
+      box.style.gridTemplateColumns = 'repeat(' + (n <= 3 ? n : n === 4 ? 2 : 3) + ', minmax(0, 1fr))';
+      opts.forEach(function (o) {
+        var b = el('button', { type: 'button', class: 'route-opt', 'data-route': o.id, text: o.name });
+        b.addEventListener('click', function () { setRoute(o.id); });
+        box.appendChild(b);
+      });
+    }
+    document.querySelectorAll('.route-opt').forEach(function (b) {
+      b.setAttribute('aria-pressed', (b.getAttribute('data-route') || '') === logRoute ? 'true' : 'false');
+    });
+    $('oneOffBox').hidden = logRoute !== 'oneoff';
   }
 
   /* ================= DOM helpers ================= */
@@ -320,9 +359,12 @@
 
   function logTrain(mode, label) {
     var date = selectedDate();
-    var already = state.entries.some(function (e) { return e.date === date && e.type !== 'custom'; });
-    if (already && !confirm('A commute day is already logged for ' + C.shortDate(date) + '. Add another?')) return;
+    var missing = oneOffMissing();
+    if (missing) { toast(missing); (logRoute === 'oneoff' && !(oneOffTrip().miles > 0) ? $('oneOffMiles') : $('dayFare')).focus(); return; }
     var eff = current();
+    var isTrip = !!(eff.routeName && !eff.tripWork);
+    var already = !isTrip && state.entries.some(function (e) { return e.date === date && e.type !== 'custom' && !e.trip; });
+    if (already && !confirm('A commute day is already logged for ' + C.shortDate(date) + '. Add another?')) return;
     var s = C.entrySaving(mode, eff);
     var entry = { id: uid(), date: date, ts: Date.now(), type: mode, label: label, fuel: s.fuel, wear: s.wear };
     if (mode === 'train' || mode === 'station') {
@@ -332,10 +374,11 @@
     if (mode !== 'off' && eff.routeName) {
       entry.route = eff.routeName;
       entry.miles = eff.commuteMiles;
+      if (isTrip) entry.trip = true;
     }
     if (mode !== 'off') { entry.mpg = Math.round(eff.mpg * 10) / 10; entry.price = Math.round(eff.price * 1000) / 1000; }
     var how = mode === 'station' ? 'station' : /cycled/i.test(label) ? 'cycled' : /walked/i.test(label) ? 'walked' : '';
-    var parts = C.commuteExercise(how, state.settings);
+    var parts = C.commuteExercise(how, eff);
     if (parts[0]) entry.ex = parts[0];
     if (parts[1]) entry.ex2 = parts[1];
     addEntry(entry);
@@ -382,21 +425,24 @@
     var tr = C.displayValue(C.entrySaving('train', eff), s.includeWear);
     var st = C.displayValue(C.entrySaving('station', eff), s.includeWear);
     var rs = routeNow();
-    $('routeSwitch').hidden = !s.route2On;
-    $('route2Btn').textContent = s.route2Name || 'Second route';
-    document.querySelectorAll('.route-opt').forEach(function (b) {
-      b.setAttribute('aria-pressed', (b.dataset.route || '') === (s.route2On ? logRoute : '') ? 'true' : 'false');
-    });
+    renderRoutes();
+    var oneOff = logRoute === 'oneoff', missing = oneOffMissing();
+    var isTrip = !!(eff.routeName && !eff.tripWork);
+    $('offBtn').hidden = isTrip;
+    $('offHint').hidden = isTrip;
+    $('fareChips').hidden = oneOff;
     var usual = C.usualFare(rs, selectedDate());
-    var basis = (eff.routeName ? 'Via ' + eff.routeName + ', ' + eff.commuteMiles + ' miles driving. ' : '') + 'Ticket ' + C.money(eff.fare) + (eff.fareCode ? ' with ' + eff.fareCode : '') + '. ';
+    var basis = (eff.routeName ? (isTrip ? 'Trip to ' : 'Via ') + eff.routeName + ', ' + eff.commuteMiles + ' miles driving. ' : '') + 'Ticket ' + C.money(eff.fare) + (eff.fareCode ? ' with ' + eff.fareCode : '') + '. ';
     if (usual.expired) basis = 'Code ' + (s.discountCode || '') + ' ended ' + C.shortDate(s.discountEnds) + ', so the full fare is used. ';
     $('basis').textContent = basis + 'Working out with ' + eff.mpg.toFixed(1) + ' mpg' + (eff.source.mpg === 'fills' ? ' (real)' : '') +
       ' and petrol at ' + (eff.price * 100).toFixed(1) + 'p a litre' + (eff.source.price === 'fills' ? ' (last fill)' : '') + '.';
-    $('dayFare').placeholder = usual.fare.toFixed(2);
+    $('dayFare').placeholder = oneOff ? 'What the ticket cost' : usual.fare.toFixed(2);
+    if (missing) $('basis').textContent = missing + ' Working out with ' + eff.mpg.toFixed(1) + ' mpg and petrol at ' + (eff.price * 100).toFixed(1) + 'p a litre.';
     $('chipReturnName').textContent = usual.code ? usual.code + ' return' : 'Day return';
     $('chipReturn').textContent = C.money(usual.fare);
     $('chipFull').textContent = C.money(rs.fare);
-    $('chipFullBtn').hidden = !usual.code || (eff.routeName && !(s.route2Full > 0));
+    $('chipFullBtn').hidden = !usual.code || !(rs.fare > 0);
+    $('chipSingles').parentNode.hidden = !!rs.routeName && !rs.tripSingle; // no single fare saved for this trip
     $('chipSingles').textContent = C.money(usual.single * 2);
     var df = dayFare();
     document.querySelectorAll('[data-fare]').forEach(function (b) {
@@ -404,10 +450,11 @@
       var on = df === null ? b.dataset.fare === 'return' : C.round2(v) === df;
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
-    document.querySelectorAll('[data-amount="train"]').forEach(function (n) { n.textContent = '+' + C.money(tr); });
     var lf = C.displayValue(C.entrySaving('lift', eff), s.includeWear);
-    document.querySelectorAll('[data-amount="lift"]').forEach(function (n) { n.textContent = '+' + C.money(lf); });
-    document.querySelectorAll('[data-amount="station"]').forEach(function (n) { n.textContent = (st >= 0 ? '+' : '') + C.money(st); });
+    var dash = oneOff && !(oneOffTrip().miles > 0);
+    document.querySelectorAll('[data-amount="train"]').forEach(function (n) { n.textContent = missing ? '+£–' : '+' + C.money(tr); });
+    document.querySelectorAll('[data-amount="lift"]').forEach(function (n) { n.textContent = dash ? '+£–' : '+' + C.money(lf); });
+    document.querySelectorAll('[data-amount="station"]').forEach(function (n) { n.textContent = missing ? '+£–' : (st >= 0 ? '+' : '') + C.money(st); });
 
     // totals
     $('tToday').textContent = C.money(t.today);
@@ -416,6 +463,9 @@
     $('tMonthLabel').textContent = s.monthStart === 'calendar' ? 'This month' : 'This pay month';
     $('tYear').textContent = C.money(t.year);
     $('tAll').textContent = C.money(t.all);
+    $('tripsNote').hidden = !(t.tripsAll > 0);
+    $('tripsNote').textContent = 'Includes ' + C.money(t.tripsMonth) + ' from trips this ' + (s.monthStart === 'calendar' ? 'month' : 'pay month') +
+      ' (' + C.money(t.tripsAll) + ' all time).';
     $('wearHint').textContent = s.includeWear ? 'Totals include van wear.' : 'Fuel savings only. Van wear can be added in Settings.';
 
     renderList();
@@ -429,7 +479,7 @@
   function entrySub(e) {
     var fuel = e.mpg ? e.mpg.toFixed(1) + ' mpg · ' + (e.price * 100).toFixed(1) + 'p/L' : '';
     if (e.type === 'off') return 'Holiday, sick or home. Keeps your streak.';
-    var via = e.route ? 'Via ' + e.route + ' (' + e.miles + ' mi) · ' : '';
+    var via = e.route ? (e.trip ? 'Trip: ' : 'Via ') + e.route + ' (' + e.miles + ' mi) · ' : '';
     if (e.type === 'lift') return via + 'No fare, whole drive saved' + (fuel ? ' · ' + fuel : '');
     if (e.fare != null) return via + 'Ticket ' + C.money(e.fare) + (e.code ? ' (' + e.code + ')' : '') + (fuel ? ' · ' + fuel : '');
     return '';
@@ -762,9 +812,7 @@
   $('logDate').addEventListener('click', function () {
     try { if (this.showPicker) this.showPicker(); } catch (e) {}
   });
-  document.querySelectorAll('.route-opt').forEach(function (b) {
-    b.addEventListener('click', function () { setRoute(b.dataset.route || ''); });
-  });
+  ['oneOffName', 'oneOffMiles'].forEach(function (id) { $(id).addEventListener('input', render); });
 
   function fareFor(kind) {
     var s = routeNow();
@@ -1016,11 +1064,7 @@
     form.elements.monthStart.value = s.monthStart || 'payday';
     form.elements.payDay.value = String(s.payDay || 28);
     form.elements.payWeekend.checked = !!s.payWeekend;
-    form.elements.route2On.checked = !!s.route2On;
-    form.elements.route2Name.value = s.route2Name || '';
-    form.elements.route2Miles.value = s.route2Miles ? String(s.route2Miles) : '';
-    form.elements.route2Fare.value = s.route2Fare ? moneyText(s.route2Fare) : '';
-    ['route2Full', 'route2CodeSingle', 'route2Single'].forEach(function (k) { form.elements[k].value = s[k] ? moneyText(s[k]) : ''; });
+    renderTripRows(s.trips || []);
     form.elements.weightUnit.value = s.weightUnit || 'st';
     form.elements.weightKg.value = C.formatWeight(s.weightKg, s.weightUnit);
     form.elements.heightCm.value = s.heightCm ? C.formatHeight(s.heightCm) : '';
@@ -1031,7 +1075,8 @@
 
   function clearSettingsErrors() {
     form.querySelectorAll('[data-err]').forEach(function (n) { n.textContent = ''; });
-    C.FIELDS.concat(C.OPTIONAL, ['weightKg', 'heightCm', 'payDay', 'route2Miles', 'route2Fare', 'route2Full', 'route2CodeSingle', 'route2Single']).forEach(function (k) { form.elements[k].removeAttribute('aria-invalid'); });
+    C.FIELDS.concat(C.OPTIONAL, ['weightKg', 'heightCm', 'payDay']).forEach(function (k) { form.elements[k].removeAttribute('aria-invalid'); });
+    form.querySelectorAll('[name^="trips."]').forEach(function (n) { n.removeAttribute('aria-invalid'); });
   }
 
   function readSettingsForm() {
@@ -1046,8 +1091,7 @@
     raw.monthStart = form.elements.monthStart.value;
     raw.payDay = form.elements.payDay.value;
     raw.payWeekend = form.elements.payWeekend.checked;
-    ['route2Name', 'route2Miles', 'route2Fare', 'route2Full', 'route2CodeSingle', 'route2Single'].forEach(function (k) { raw[k] = form.elements[k].value; });
-    raw.route2On = form.elements.route2On.checked;
+    raw.trips = readTripRows();
     raw.weightUnit = form.elements.weightUnit.value;
     var w = C.parseWeight(form.elements.weightKg.value, raw.weightUnit);
     var h = C.parseHeight(form.elements.heightCm.value);
@@ -1060,6 +1104,54 @@
     if (r.settings.heightCm) r.settings.heightCm = Math.round(r.settings.heightCm);
     return r;
   }
+
+  /* Saved trips editor in Settings. Inputs are named trips.<n>.<field>. */
+  var TRIP_MONEY = [['fare', 'Return (£)', ''], ['codeFare', 'Return, code (£)', 'none'], ['single', 'Single (£)', 'half return'], ['codeSingle', 'Single, code (£)', 'half return']];
+  function renderTripRows(trips) {
+    var list = $('tripsList');
+    list.textContent = '';
+    trips.forEach(function (t, i) {
+      var p = 'trips.' + i + '.';
+      var row = el('div', { class: 'trip-row', 'data-id': t.id || '' });
+      var grid = el('div', { class: 'discount-grid' });
+      var field = function (cls, label, name, val, attrs) {
+        var inp = el('input', Object.assign({ name: p + name, autocomplete: 'off' }, attrs || {}));
+        inp.value = val;
+        grid.appendChild(el('label', { class: 'field' + cls }, [el('span', { text: label }), inp, el('em', { class: 'error', 'data-err': p + name })]));
+      };
+      field(' span2', 'Name', 'name', t.name || '', { maxlength: '30', placeholder: 'e.g. Edinburgh' });
+      field(' span2', 'Driving it, round trip (miles)', 'miles', t.miles ? String(t.miles) : '', { inputmode: 'decimal' });
+      TRIP_MONEY.forEach(function (m) { field('', m[1], m[0], t[m[0]] ? moneyText(t[m[0]]) : '', { inputmode: 'decimal', 'data-money': '', placeholder: m[2] }); });
+      row.appendChild(grid);
+      var cb = el('input', { type: 'checkbox', name: p + 'work', role: 'switch' });
+      cb.checked = !!t.work;
+      row.appendChild(el('label', { class: 'toggle' }, [cb, el('span', { class: 'toggle-track', 'aria-hidden': 'true' }), el('span', { text: 'Work day (counts as a commute day)' })]));
+      var del = el('button', { type: 'button', class: 'btn ghost small trip-del', text: 'Remove ' + (t.name || 'trip') });
+      del.addEventListener('click', function () {
+        var rows = readTripRows();
+        rows.splice(i, 1);
+        renderTripRows(rows);
+        updatePreview();
+      });
+      row.appendChild(del);
+      list.appendChild(row);
+    });
+  }
+  function readTripRows() {
+    return Array.prototype.map.call($('tripsList').querySelectorAll('.trip-row'), function (row, i) {
+      var p = 'trips.' + i + '.', g = function (k) { return form.elements[p + k]; };
+      var t = { id: row.getAttribute('data-id') || uid(), name: g('name').value, miles: g('miles').value, work: g('work').checked };
+      TRIP_MONEY.forEach(function (m) { t[m[0]] = g(m[0]).value; });
+      return t;
+    });
+  }
+  $('addTrip').addEventListener('click', function () {
+    var rows = readTripRows();
+    if (rows.length >= 12) { toast('Up to 12 saved trips.'); return; }
+    rows.push({ id: uid(), name: '', miles: '', fare: '', codeFare: '', single: '', codeSingle: '', work: false });
+    renderTripRows(rows);
+    form.elements['trips.' + (rows.length - 1) + '.name'].focus();
+  });
 
   function updateBodyConv() {
     var unit = form.elements.weightUnit.value;
@@ -1622,8 +1714,6 @@
       state.fills = (res[2] || []).map(sanitiseFill).filter(Boolean);
       state.exercise = (res[3] || []).map(sanitiseEx).filter(Boolean);
       if (res[1]) {
-        // v1.14.0 saved the Milngavie full return as 0 (not known); fill in the real fare once.
-        if (res[1].route2Full === 0 && res[1].route2Single == null) res[1].route2Full = C.DEFAULTS.route2Full;
         var v = C.validateSettings(res[1]);
         if (v.ok) state.settings = v.settings;
       }

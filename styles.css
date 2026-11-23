@@ -447,3 +447,13 @@ input { font-size: 16px; }
 /* Work / Milngavie switch: same 12px corners outside, inner pills inset to match. */
 .route-switch { border-radius: 12px; }
 .route-opt { border-radius: 8px; }
+
+/* ---------- journeys ---------- */
+.route-switch { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
+.one-off { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 0 14px; align-items: end; }
+.one-off .hint { grid-column: 1 / -1; margin: 0; }
+.trip-row { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 12px; }
+.trip-row .toggle { margin-top: 10px; }
+.trip-row .trip-del { margin-top: 10px; }
+.trips-set #addTrip { margin-top: 12px; }
+.other-days:has(#offBtn[hidden]) { grid-template-columns: 1fr; }
