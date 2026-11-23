@@ -902,6 +902,31 @@
     $('settings').hidden = true;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
+  // Theme: follow the phone (auto), or always dark / light. Per device.
+  var THEMES = ['auto', 'dark', 'light'];
+  var THEME_NAMES = { auto: 'Match phone', dark: 'Dark', light: 'Light' };
+  function currentTheme() {
+    var t = document.documentElement.getAttribute('data-theme');
+    return t === 'dark' || t === 'light' ? t : 'auto';
+  }
+  function applyTheme(t) {
+    if (t === 'auto') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', t);
+    try { if (t === 'auto') localStorage.removeItem('cs.theme'); else localStorage.setItem('cs.theme', t); } catch (e) {}
+    var dark = t === 'dark' || (t === 'auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+    document.querySelectorAll('meta[name="theme-color"]').forEach(function (m) {
+      if (t === 'auto') m.setAttribute('content', m.getAttribute('media').indexOf('dark') > -1 ? '#111111' : '#ffffff');
+      else m.setAttribute('content', dark ? '#111111' : '#ffffff');
+    });
+    $('themeBtn').setAttribute('aria-label', 'Theme: ' + THEME_NAMES[t] + '. Tap to change.');
+  }
+  applyTheme(currentTheme());
+  $('themeBtn').addEventListener('click', function () {
+    var next = THEMES[(THEMES.indexOf(currentTheme()) + 1) % THEMES.length];
+    applyTheme(next);
+    toast('Theme: ' + THEME_NAMES[next]);
+  });
+
   $('openSettings').addEventListener('click', function () {
     if ($('settings').hidden) openSettings(); else closeSettings();
   });

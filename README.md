@@ -246,5 +246,8 @@ a few weeks. Taking a backup now and then is a good habit.
   what it will add.
 * **Other saving**: tap a chip to fill it in, or type your own, then **Add**.
 * **Undo**: every add or delete shows a message with **Undo** for 6 seconds.
+* **Dark mode**: the round button next to Settings switches between Match
+  phone (half circle), Dark (moon) and Light (sun). It's remembered on that
+  phone.
 * **Settings**: the sliders button at the top right. Only numbers above 0 are
   accepted. Changes only affect days you log afterwards.

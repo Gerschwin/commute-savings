@@ -20,7 +20,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #0e0e0e;
     --surface: #1a1a1a;
     --surface-2: #262626;
@@ -36,6 +36,23 @@
     --ok: #5fd38a;
     color-scheme: dark;
   }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0e0e0e;
+  --surface: #1a1a1a;
+  --surface-2: #262626;
+  --text: #f4f4f3;
+  --muted: #a3a3a1;
+  --line: #2c2c2c;
+  --accent-text: #ff7a55;
+  --accent-soft: rgba(255, 74, 28, .2);
+  --btn-bg: #f4f4f3;
+  --btn-text: #111111;
+  --btn-amount: #d63a10;
+  --danger: #ff8a7a;
+  --ok: #5fd38a;
+  color-scheme: dark;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -75,6 +92,9 @@ input { font-size: 16px; }
 .hero { padding: 8px 2px 20px; }
 .hero-top { display: flex; align-items: center; justify-content: space-between; }
 .eyebrow { text-transform: uppercase; letter-spacing: .08em; font-size: .8rem; font-weight: 600; color: var(--muted); }
+.hero-actions { display: flex; gap: 8px; }
+.icon-btn .theme-ico { display: none; }
+:root:not([data-theme]) .theme-auto, :root[data-theme="dark"] .theme-dark, :root[data-theme="light"] .theme-light { display: block; }
 .icon-btn {
   width: 48px; height: 48px; border-radius: 50%; border: 0;
   background: var(--surface); color: var(--text);
