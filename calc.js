@@ -296,6 +296,40 @@
           expired: !!(settings.discountOn && settings.discountEnds && dateISO && dateISO > settings.discountEnds) };
   }
 
+  /* Rework past train days with the real figures for the time:
+     mpg from the tank in use that day (filled on or before it, next full fill after it),
+     else the overall average; petrol price from the last fill on or before that day,
+     else the earliest fill. The fare each day stored is kept (older entries without one
+     use the usual fare for that date). Wear doesn't depend on mpg, so it is kept.
+     Returns only the entries that change by at least 1p. */
+  function recalcEntries(entries, fills, settings) {
+    var stats = fillStats(fills, settings.odoUnit);
+    if (!stats.mpg) return [];
+    var byDate = fills.filter(function (f) { return f.litres > 0 && f.cost > 0 && isISODate(f.date); })
+      .slice().sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : (a.ts || 0) - (b.ts || 0); });
+    if (!byDate.length) return [];
+    var changes = [];
+    entries.forEach(function (e) {
+      if (e.type !== 'train' && e.type !== 'station') return;
+      var mpg = stats.mpg;
+      for (var i = 0; i < stats.intervals.length; i++) {
+        var iv = stats.intervals[i];
+        if (iv.from <= e.date && e.date < iv.to) { mpg = iv.mpg; break; }
+      }
+      var fill = byDate[0];
+      byDate.forEach(function (f) { if (f.date <= e.date) fill = f; });
+      var price = fill.cost / fill.litres;
+      var fare = e.fare != null && isFinite(e.fare) ? e.fare : usualFare(settings, e.date).fare;
+      var s = Object.assign({}, settings, { mpg: mpg, price: price, fare: fare });
+      var fuel = round2(trainSaving(e.type, s).fuel);
+      if (Math.abs(fuel - (e.fuel || 0)) >= 0.005) {
+        changes.push({ id: e.id, date: e.date, oldFuel: e.fuel || 0, fuel: fuel,
+          mpg: Math.round(mpg * 10) / 10, price: Math.round(price * 1000) / 1000, fare: round2(fare) });
+      }
+    });
+    return changes;
+  }
+
   function validateFill(raw) {
     var errors = {};
     var num = function (v) { return parseFloat(String(v == null ? '' : v).replace(/[£,\s]/g, '')); };
@@ -517,6 +551,7 @@
     parseHeight: parseHeight,
     formatHeight: formatHeight,
     exerciseTotals: exerciseTotals,
-    usualFare: usualFare
+    usualFare: usualFare,
+    recalcEntries: recalcEntries
   };
 });

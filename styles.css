@@ -337,3 +337,7 @@ input { font-size: 16px; }
 .discount-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .discount-grid .span2 { grid-column: span 2; }
 .span-all { grid-column: 1 / -1; }
+.recalc { margin-top: 6px; }
+.recalc-panel { margin-top: 10px; padding: 12px 14px; border-radius: 14px; background: var(--bg); border: 1.5px solid var(--accent); }
+.recalc-panel p { margin: 0; font-size: .95rem; }
+.recalc-panel .settings-actions { margin-top: 12px; }

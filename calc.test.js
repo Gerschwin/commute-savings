@@ -273,4 +273,34 @@ test('settings: weight and height are optional but sanity checked', () => {
   assert.strictEqual(C.validateSettings(Object.assign({}, C.DEFAULTS, { heightCm: 178 })).settings.heightCm, 178);
 });
 
+test('recalculating past days uses the tank and price of the time', () => {
+  const fills = [
+    { date: '2026-11-01', odo: 10000, litres: 50, cost: 79.5, full: true },   // 159p
+    { date: '2026-11-15', odo: 10300, litres: 60, cost: 90, full: true },     // 150p, tank 1: 300 mi / 60 L = 22.73 mpg
+    { date: '2026-11-29', odo: 10550, litres: 50, cost: 72.5, full: true }    // 145p, tank 2: 250 mi / 50 L = 22.73
+  ];
+  const entries = [
+    { id: 'a', date: '2026-11-03', type: 'train', fuel: 5.67, fare: 5.5 },    // tank 1, 159p
+    { id: 'b', date: '2026-11-20', type: 'station', fuel: 3.94, fare: 5.45 }, // tank 2, 150p
+    { id: 'c', date: '2026-11-10', type: 'custom', fuel: 15 },                // never touched
+    { id: 'd', date: '2026-10-20', type: 'train', fuel: 5.67 }                // before any fill: earliest price, average mpg, usual fare
+  ];
+  const ch = C.recalcEntries(entries, fills, C.DEFAULTS);
+  const by = Object.fromEntries(ch.map(c => [c.id, c]));
+  assert.ok(!by.c);
+  // a: 34 × 1.59 × 4.546 / 22.727 − 5.50 = 10.81 − 5.50
+  assert.strictEqual(by.a.fuel, 5.31);
+  assert.strictEqual(by.a.price, 1.59);
+  // b: 34 × 1.50 × 4.546 / 22.727 − 5.45 − 3.6 × 1.50 × 4.546 / 15
+  assert.strictEqual(by.b.fuel, 3.11);
+  // d: no stored fare, so the BB1 fare for that date (£5.45)
+  assert.strictEqual(by.d.fare, 5.45);
+  assert.strictEqual(by.d.fuel, 5.36);
+});
+
+test('no recalculation until there is a real mpg', () => {
+  const one = [{ date: '2026-11-01', odo: 10000, litres: 50, cost: 79.5, full: true }];
+  assert.deepStrictEqual(C.recalcEntries([{ id: 'a', date: '2026-11-03', type: 'train', fuel: 5.67 }], one, C.DEFAULTS), []);
+});
+
 console.log('\n' + passed + ' passed' + (process.exitCode ? ', some FAILED' : ''));

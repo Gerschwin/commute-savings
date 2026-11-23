@@ -86,6 +86,20 @@ paid. Tick **Filled to full** if you brimmed it.
   with your real mpg and price. Switch it off to use the Settings figures.
   Old days never change.
 
+### Recalculate past days
+
+Days you logged before the fuel log had real figures were worked out with the
+Settings guesses. Once real mpg appears, a **Recalculate past days with real
+figures** button shows in the Fuel log card (only when something would
+change). Tap it to see the effect first, for example "this month: £79.20
+becomes £71.65", then **Update** to apply it, with a 6 second Undo.
+
+Each train day gets the mpg of the tank you were on that day (filled on or
+before it, measured at the next full fill), or your average if no tank covers
+it, and the petrol price from the fill-up on or before that day. The fare
+you paid is kept. Other savings and exercise aren't touched. Nothing changes
+unless you press the button.
+
 If you'd rather type the trip computer figure, put it in Settings. If it shows
 km/L, use **Dashboard shows km/L?** to convert.
 

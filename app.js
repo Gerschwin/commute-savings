@@ -470,6 +470,10 @@
     }
     $('fuelNote').textContent = note;
     $('useFills').checked = !!s.useFills;
+    var changes = C.recalcEntries(state.entries, state.fills, s);
+    $('recalcBox').hidden = !changes.length;
+    $('recalcBtn').textContent = 'Recalculate ' + changes.length + ' past day' + (changes.length === 1 ? '' : 's') + ' with real figures';
+    if (!changes.length) $('recalcPanel').hidden = true;
     $('odoUnit').value = s.odoUnit;
 
     var list = $('fillList');
@@ -512,6 +516,61 @@
     store.del('fills', id).catch(saveFailed);
     if (!silent) toast('Deleted fill-up', function () { addFill(fill, true); toast('Restored'); });
   }
+
+  /* Rework past train days with the real mpg and price of the time (preview, confirm, undo). */
+  function withChanges(entries, changes) {
+    var by = {};
+    changes.forEach(function (c) { by[c.id] = c; });
+    return entries.map(function (e) {
+      var c = by[e.id];
+      if (!c) return e;
+      return Object.assign({}, e, { fuel: c.fuel, mpg: c.mpg, price: c.price, fare: c.fare, recalc: Date.now() });
+    });
+  }
+
+  $('recalcBtn').addEventListener('click', function () {
+    var changes = C.recalcEntries(state.entries, state.fills, state.settings);
+    if (!changes.length) return;
+    var inc = state.settings.includeWear, today = todayISO();
+    var before = C.totals(state.entries, today, inc), after = C.totals(withChanges(state.entries, changes), today, inc);
+    var text = changes.length + (changes.length === 1 ? ' day changes. ' : ' days change. ');
+    if (before.month !== after.month) text += 'This month: ' + C.money(before.month) + ' becomes ' + C.money(after.month) + '. ';
+    if (before.all !== before.month || after.all !== after.month) {
+      text += 'All time: ' + C.money(before.all) + ' becomes ' + C.money(after.all) + '. ';
+    }
+    text += 'Each day uses the mpg of the tank you were on and the petrol price of the time. The fare you paid stays the same.';
+    $('recalcText').textContent = text;
+    $('recalcGo').textContent = 'Update ' + changes.length + (changes.length === 1 ? ' day' : ' days');
+    $('recalcPanel').hidden = false;
+    $('recalcBtn').hidden = true;
+  });
+  $('recalcCancel').addEventListener('click', function () {
+    $('recalcPanel').hidden = true;
+    $('recalcBtn').hidden = false;
+  });
+  $('recalcGo').addEventListener('click', function () {
+    var changes = C.recalcEntries(state.entries, state.fills, state.settings);
+    $('recalcPanel').hidden = true;
+    $('recalcBtn').hidden = false;
+    if (!changes.length) return;
+    var ids = {};
+    changes.forEach(function (c) { ids[c.id] = true; });
+    var previous = state.entries.filter(function (e) { return ids[e.id]; }).map(function (e) { return Object.assign({}, e); });
+    var before = C.totals(state.entries, todayISO(), state.settings.includeWear).all;
+    state.entries = withChanges(state.entries, changes);
+    var updated = state.entries.filter(function (e) { return ids[e.id]; });
+    store.put('entries', updated).catch(saveFailed);
+    render();
+    var diff = C.round2(C.totals(state.entries, todayISO(), state.settings.includeWear).all - before);
+    toast('Updated ' + changes.length + (changes.length === 1 ? ' day' : ' days') + ' (' + (diff >= 0 ? '+' : '') + C.money(diff) + ')', function () {
+      var back = {};
+      previous.forEach(function (e) { back[e.id] = e; });
+      state.entries = state.entries.map(function (e) { return back[e.id] || e; });
+      store.put('entries', previous).catch(saveFailed);
+      render();
+      toast('Recalculation undone');
+    });
+  });
 
   var fillForm = $('fillForm');
   function fillRaw() {
