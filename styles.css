@@ -433,3 +433,12 @@ input { font-size: 16px; }
 /* Date control only as wide as the date itself, text centred in it. */
 .card-head .date-field input { field-sizing: content; width: auto; text-align: center; }
 .card-head .date-field input::-webkit-datetime-edit-fields-wrapper { padding: 0; }
+/* Fare buttons: same rounded corners as the other buttons, equal size, name above price. */
+.fare-chips { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; }
+.fare-chips .chip {
+  border-radius: 12px; min-height: 56px; padding: 8px 6px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  line-height: 1.2; font-size: .9rem;
+}
+.fare-chips .chip b { margin-left: 0; font-size: 1rem; }
+.fare-chips .chip[hidden] { display: none; }
