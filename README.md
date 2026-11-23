@@ -202,9 +202,10 @@ Then do step 6.
 ### Updating the app later
 
 1. Change the files and upload them to GitHub again (or commit and push).
-2. On the phone, open the app while you have signal. It shows the saved copy
-   straight away and quietly downloads the new one.
-3. Close it fully and open it again to see the change.
+2. On the phone, open the app while you have signal. It checks for a new
+   version each time you open it or come back to it, and reloads itself
+   a moment later when one arrives.
+3. The version number is at the very bottom of the app, so you can check.
 
 If you add or rename a file, also add it to the `CORE` list in `sw.js` and bump
 the version at the top (for example `var VERSION = 'v1.0.1';`) so old copies

@@ -1,7 +1,7 @@
 /* Commute Savings service worker.
    Changed files reach phones on their own (one app open later). Bump VERSION
    when you add or rename files, so the old cache is cleared out. */
-var VERSION = 'v1.6.2';
+var VERSION = 'v1.6.3';
 var SHELL = 'cs-shell-' + VERSION;
 var FONTS = 'cs-fonts-v1';
 
@@ -24,7 +24,11 @@ var FONT_CSS = 'https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@40
 
 self.addEventListener('install', function (event) {
   event.waitUntil(
-    caches.open(SHELL).then(function (cache) { return cache.addAll(CORE); })
+    caches.open(SHELL).then(function (cache) {
+      // cache: 'reload' skips the browser's own cache, so a new version never
+      // installs with stale copies of the files.
+      return cache.addAll(CORE.map(function (u) { return new Request(u, { cache: 'reload' }); }));
+    })
       .then(function () {
         // Save the font CSS and every font file it points to, so text looks right offline.
         // Failure here (no signal) is fine; fonts are also cached as they are used.

@@ -1189,8 +1189,25 @@
     .catch(function (err) { console.error(err); render(); toast('Could not load saved data.'); });
 
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-    window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js').catch(function (e) { console.warn('SW failed', e); });
+    // When a new version takes over, reload once so it shows straight away.
+    var hadController = !!navigator.serviceWorker.controller, reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (!hadController || reloaded) { hadController = true; return; }
+      reloaded = true;
+      location.reload();
     });
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').then(function (reg) {
+        // Android keeps the app in memory, so check for a new version each time it comes back.
+        document.addEventListener('visibilitychange', function () {
+          if (document.visibilityState === 'visible') reg.update().catch(function () {});
+        });
+      }).catch(function (e) { console.warn('SW failed', e); });
+    });
+    // Show the installed version in the footer.
+    if (window.caches) caches.keys().then(function (keys) {
+      var k = keys.filter(function (n) { return n.indexOf('cs-shell-') === 0; }).sort().pop();
+      if (k) $('appVersion').textContent = ' · ' + k.replace('cs-shell-', '');
+    }).catch(function () {});
   }
 })();
