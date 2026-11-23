@@ -39,8 +39,9 @@ With the brief's original figures (22 mpg, £1.59 a litre, £5.50 fare):
 * Walked or cycled: £5.67 fuel saving (plus £3.40 wear)
 * Drove to station: £3.94 fuel saving (plus £3.04 wear)
 
-The default fare is now the real ScotRail day return, £6.10 (Nov 2026), which
-gives £5.07 and £3.34. £5.50 turned out to be the Anytime Day Single.
+The default fare is now the real ScotRail Anytime Day Return, £5.45 (Nov
+2026), which gives £5.72 and £3.99. The Anytime Day Single is £5.50, so a
+return is always the one to buy.
 
 Note: the original brief said the drove-to-station day comes to about £3.97.
 Using the formula above, it is £5.671 − £1.735 = £3.936, so £3.94. The tests

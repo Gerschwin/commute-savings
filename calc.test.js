@@ -3,7 +3,7 @@
 const assert = require('assert');
 const C = require('./calc.js');
 
-// The brief's worked examples used a £5.50 fare; the default is now the real £6.10.
+// The brief's worked examples used a £5.50 fare; the default is now the real £5.45 return.
 const D = Object.assign({}, C.DEFAULTS, { fare: 5.5 });
 let passed = 0;
 function test(name, fn) {
@@ -108,10 +108,10 @@ test('settings validation rejects zero, negative and blank', () => {
   assert.strictEqual(C.validateSettings(D).ok, true);
 });
 
-test('with the real £6.10 fare: walked £5.07, drove to station £3.34', () => {
-  assert.strictEqual(C.DEFAULTS.fare, 6.1);
-  assert.strictEqual(C.entrySaving('train', C.DEFAULTS).fuel, 5.07);
-  assert.strictEqual(C.entrySaving('station', C.DEFAULTS).fuel, 3.34);
+test('with the real £5.45 return: walked £5.72, drove to station £3.99', () => {
+  assert.strictEqual(C.DEFAULTS.fare, 5.45);
+  assert.strictEqual(C.entrySaving('train', C.DEFAULTS).fuel, 5.72);
+  assert.strictEqual(C.entrySaving('station', C.DEFAULTS).fuel, 3.99);
 });
 
 test('km/L converts to UK mpg', () => {
