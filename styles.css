@@ -153,6 +153,14 @@ input { font-size: 16px; }
   -webkit-tap-highlight-color: transparent;
 }
 .big-btn:active { transform: scale(.98); }
+.train-buttons .hint { margin: 0; }
+.other-days { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.big-btn.small {
+  min-height: 56px; padding: 10px 14px; font-size: 1rem;
+  background: var(--bg); color: var(--text); border: 1.5px solid var(--line);
+  flex-direction: column; align-items: flex-start; justify-content: center; gap: 4px;
+}
+.big-btn.small .big-btn-amount { font-size: 1.3rem; color: var(--accent-text); }
 .big-btn-amount {
   font-family: var(--font-num); font-weight: 800; font-size: 1.7rem; line-height: 1;
   color: var(--btn-amount); white-space: nowrap; font-variant-numeric: tabular-nums;

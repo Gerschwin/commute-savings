@@ -266,6 +266,10 @@ a few weeks. Taking a backup now and then is a good habit.
 * **Log a day**: the date defaults to today. Change it to back-fill an earlier
   day, then tap the button for how you got to the station. Each button shows
   what it will add.
+* **Got a lift**: saves the whole drive (fuel, plus wear if switched on), no
+  fare. Doesn't count as a train day.
+* **No commute**: for holidays, sick days or working from home. Saves
+  nothing, but like a weekend it never breaks your exercise streak.
 * **Other saving**: tap a chip to fill it in, or type your own, then **Add**.
 * **Undo**: every add or delete shows a message with **Undo** for 6 seconds.
 * **Dark mode**: the round button next to Settings switches between Match

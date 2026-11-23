@@ -124,7 +124,7 @@
       id: String(e.id || uid()),
       date: e.date,
       ts: Number(e.ts) || Date.now(),
-      type: ['train', 'station', 'custom'].indexOf(e.type) >= 0 ? e.type : 'custom',
+      type: C.TYPES.indexOf(e.type) >= 0 ? e.type : 'custom',
       label: String(e.label || '').slice(0, 120),
       fuel: C.round2(fuel),
       wear: isFinite(wear) ? C.round2(wear) : 0
@@ -272,13 +272,15 @@
   function logTrain(mode, label) {
     var date = selectedDate();
     var already = state.entries.some(function (e) { return e.date === date && e.type !== 'custom'; });
-    if (already && !confirm('A train day is already logged for ' + C.shortDate(date) + '. Add another?')) return;
+    if (already && !confirm('A commute day is already logged for ' + C.shortDate(date) + '. Add another?')) return;
     var eff = current();
     var s = C.entrySaving(mode, eff);
-    var entry = {
-      id: uid(), date: date, ts: Date.now(), type: mode, label: label, fuel: s.fuel, wear: s.wear,
-      fare: C.round2(eff.fare), code: eff.fareCode || undefined, mpg: Math.round(eff.mpg * 10) / 10, price: Math.round(eff.price * 1000) / 1000
-    };
+    var entry = { id: uid(), date: date, ts: Date.now(), type: mode, label: label, fuel: s.fuel, wear: s.wear };
+    if (mode === 'train' || mode === 'station') {
+      entry.fare = C.round2(eff.fare);
+      if (eff.fareCode) entry.code = eff.fareCode;
+    }
+    if (mode !== 'off') { entry.mpg = Math.round(eff.mpg * 10) / 10; entry.price = Math.round(eff.price * 1000) / 1000; }
     var how = mode === 'station' ? 'station' : /cycled/i.test(label) ? 'cycled' : /walked/i.test(label) ? 'walked' : '';
     var parts = C.commuteExercise(how, state.settings);
     if (parts[0]) entry.ex = parts[0];
@@ -334,6 +336,8 @@
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
     document.querySelectorAll('[data-amount="train"]').forEach(function (n) { n.textContent = '+' + C.money(tr); });
+    var lf = C.displayValue(C.entrySaving('lift', eff), s.includeWear);
+    document.querySelectorAll('[data-amount="lift"]').forEach(function (n) { n.textContent = '+' + C.money(lf); });
     document.querySelectorAll('[data-amount="station"]').forEach(function (n) { n.textContent = (st >= 0 ? '+' : '') + C.money(st); });
 
     // totals
@@ -352,6 +356,14 @@
 
   var DELETE_ICON = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
 
+  function entrySub(e) {
+    var fuel = e.mpg ? e.mpg.toFixed(1) + ' mpg · ' + (e.price * 100).toFixed(1) + 'p/L' : '';
+    if (e.type === 'off') return 'Holiday, sick or home. Keeps your streak.';
+    if (e.type === 'lift') return 'No fare, whole drive saved' + (fuel ? ' · ' + fuel : '');
+    if (e.fare != null) return 'Ticket ' + C.money(e.fare) + (e.code ? ' (' + e.code + ')' : '') + (fuel ? ' · ' + fuel : '');
+    return '';
+  }
+
   function renderList() {
     var list = $('logList');
     list.textContent = '';
@@ -365,7 +377,7 @@
         el('div', null, [
           el('span', { class: 'when', text: C.shortDate(e.date) + (e.date.slice(0, 4) !== todayISO().slice(0, 4) ? ' ' + e.date.slice(0, 4) : '') }),
           el('span', { class: 'what', text: e.label || (e.type === 'custom' ? 'Other saving' : 'Train') }),
-          e.fare != null ? el('span', { class: 'sub', text: 'Ticket ' + C.money(e.fare) + (e.code ? ' (' + e.code + ')' : '') + (e.mpg ? ' · ' + e.mpg.toFixed(1) + ' mpg · ' + (e.price * 100).toFixed(1) + 'p/L' : '') }) : null
+          entrySub(e) ? el('span', { class: 'sub', text: entrySub(e) }) : null
         ]),
         el('span', { class: 'amt' + (v < 0 ? ' neg' : ''), text: C.money(v) }),
         del
@@ -531,7 +543,7 @@
     return entries.map(function (e) {
       var c = by[e.id];
       if (!c) return e;
-      return Object.assign({}, e, { fuel: c.fuel, mpg: c.mpg, price: c.price, fare: c.fare, recalc: Date.now() });
+      return Object.assign({}, e, { fuel: c.fuel, mpg: c.mpg, price: c.price, fare: c.fare != null ? c.fare : e.fare, recalc: Date.now() });
     });
   }
 
@@ -718,7 +730,9 @@
   function renderExercise() {
     var s = state.settings;
     var list = allExercise();
-    var t = C.exerciseTotals(list, todayISO());
+    var rest = {};
+    state.entries.forEach(function (e) { if (e.type === 'off') rest[e.date] = true; });
+    var t = C.exerciseTotals(list, todayISO(), rest);
     var noBody = !(s.weightKg > 0) || !(s.heightCm > 0);
     $('exProfileHint').hidden = !noBody;
     $('exWalk').innerHTML = (t.walk + t.run) + '<small>mi</small>';

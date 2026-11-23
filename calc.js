@@ -58,6 +58,9 @@
      Returns unrounded {fuel, wear}; round when storing. */
   function trainSaving(mode, s) {
     var drive = drivingCost(s);
+    // Got a lift: the whole drive is saved, no fare. No commute: nothing saved.
+    if (mode === 'lift') return { fuel: drive, wear: s.commuteMiles * s.wearPence / 100 };
+    if (mode === 'off') return { fuel: 0, wear: 0 };
     if (mode === 'station') {
       return {
         fuel: drive - s.fare - stationFuel(s),
@@ -121,7 +124,7 @@
       if (e.date.slice(0, 4) === year) t.year += v;
       if (e.date.slice(0, 7) === month) {
         t.month += v;
-        if (e.type !== 'custom') trainDates[e.date] = true;
+        if (e.type === 'train' || e.type === 'station') trainDates[e.date] = true;
       }
       if (e.date >= weekStart && e.date <= todayISO) t.week += v;
       if (e.date === todayISO) t.today += v;
@@ -210,7 +213,7 @@
       var wear = wi >= 0 ? parseFloat(r[wi]) : 0;
       var type = ti >= 0 ? (r[ti] || '').trim() : 'custom';
       if (!isISODate(date) || !isFinite(fuel)) { skipped++; return; }
-      if (['train', 'station', 'custom'].indexOf(type) < 0) type = 'custom';
+      if (TYPES.indexOf(type) < 0) type = 'custom';
       out.push({
         date: date,
         type: type,
@@ -311,7 +314,7 @@
     if (!byDate.length) return [];
     var changes = [];
     entries.forEach(function (e) {
-      if (e.type !== 'train' && e.type !== 'station') return;
+      if (e.type !== 'train' && e.type !== 'station' && e.type !== 'lift') return;
       var mpg = stats.mpg;
       for (var i = 0; i < stats.intervals.length; i++) {
         var iv = stats.intervals[i];
@@ -320,12 +323,12 @@
       var fill = byDate[0];
       byDate.forEach(function (f) { if (f.date <= e.date) fill = f; });
       var price = fill.cost / fill.litres;
-      var fare = e.fare != null && isFinite(e.fare) ? e.fare : usualFare(settings, e.date).fare;
+      var fare = e.type === 'lift' ? 0 : e.fare != null && isFinite(e.fare) ? e.fare : usualFare(settings, e.date).fare;
       var s = Object.assign({}, settings, { mpg: mpg, price: price, fare: fare });
       var fuel = round2(trainSaving(e.type, s).fuel);
       if (Math.abs(fuel - (e.fuel || 0)) >= 0.005) {
         changes.push({ id: e.id, date: e.date, oldFuel: e.fuel || 0, fuel: fuel,
-          mpg: Math.round(mpg * 10) / 10, price: Math.round(price * 1000) / 1000, fare: round2(fare) });
+          mpg: Math.round(mpg * 10) / 10, price: Math.round(price * 1000) / 1000, fare: e.type === 'lift' ? null : round2(fare) });
       }
     });
     return changes;
@@ -341,7 +344,7 @@
     if (!mpgChanged && !priceChanged) return [];
     var changes = [];
     entries.forEach(function (e) {
-      if (e.type !== 'train' && e.type !== 'station') return;
+      if (e.type !== 'train' && e.type !== 'station' && e.type !== 'lift') return;
       var mpg = e.mpg > 0 ? e.mpg : oldS.mpg;
       var price = e.price > 0 ? e.price : oldS.price;
       var usedMpg = mpgChanged && Math.abs(mpg - oldS.mpg) < 0.05;
@@ -349,11 +352,11 @@
       if (!usedMpg && !usedPrice) return;
       if (usedMpg) mpg = newS.mpg;
       if (usedPrice) price = newS.price;
-      var fare = e.fare != null && isFinite(e.fare) ? e.fare : usualFare(newS, e.date).fare;
+      var fare = e.type === 'lift' ? 0 : e.fare != null && isFinite(e.fare) ? e.fare : usualFare(newS, e.date).fare;
       var fuel = round2(trainSaving(e.type, Object.assign({}, newS, { mpg: mpg, price: price, fare: fare })).fuel);
       if (Math.abs(fuel - (e.fuel || 0)) >= 0.005) {
         changes.push({ id: e.id, date: e.date, oldFuel: e.fuel || 0, fuel: fuel,
-          mpg: Math.round(mpg * 10) / 10, price: Math.round(price * 1000) / 1000, fare: round2(fare) });
+          mpg: Math.round(mpg * 10) / 10, price: Math.round(price * 1000) / 1000, fare: e.type === 'lift' ? null : round2(fare) });
       }
     });
     return changes;
@@ -496,7 +499,9 @@
 
   /* Exercise summary for the month of todayISO plus all time.
      records: [{date, kind, miles, steps, kcal}] */
-  function exerciseTotals(records, todayISO) {
+  /* restDays: dates logged as No commute; like weekends they never break the streak. */
+  function exerciseTotals(records, todayISO, restDays) {
+    restDays = restDays || {};
     var month = todayISO.slice(0, 7);
     var t = { walk: 0, cycle: 0, run: 0, miles: 0, steps: 0, kcal: 0, activeDays: 0, allMiles: 0, allKcal: 0, streak: 0 };
     var days = {};
@@ -515,7 +520,7 @@
     // Weekends never break it but count if active. Today not done yet doesn't break it either.
     var d = parseISO(todayISO);
     for (var i = 0; i < 400; i++) {
-      var iso = toISO(d), dow = d.getDay(), weekend = dow === 0 || dow === 6;
+      var iso = toISO(d), dow = d.getDay(), weekend = dow === 0 || dow === 6 || !!restDays[iso];
       if (days[iso]) t.streak++;
       else if (!weekend && i > 0) break;
       d.setDate(d.getDate() - 1);
@@ -523,6 +528,8 @@
     ['walk', 'cycle', 'run', 'miles', 'allMiles'].forEach(function (k) { t[k] = Math.round(t[k] * 10) / 10; });
     return t;
   }
+
+  var TYPES = ['train', 'station', 'lift', 'off', 'custom'];
 
   /* ---------- settings validation ---------- */
   var FIELDS = ['price', 'mpg', 'commuteMiles', 'fare', 'single', 'stationMiles', 'stationMpg', 'wearPence', 'target',
@@ -573,6 +580,7 @@
     LITRES_PER_GALLON: LITRES_PER_GALLON,
     DEFAULTS: DEFAULTS,
     FIELDS: FIELDS,
+    TYPES: TYPES,
     OPTIONAL: OPTIONAL,
     commuteExercise: commuteExercise,
     round2: round2,

@@ -357,4 +357,39 @@ test('work leg may be 0 but not negative; old settings get the leg defaults', ()
   assert.strictEqual(v.settings.workLeg, 0.8);
 });
 
+test('got a lift saves the whole drive; no commute saves nothing', () => {
+  const lift = C.entrySaving('lift', C.DEFAULTS);
+  // 34 × 1.59 × 4.546 / 22 = 11.17
+  assert.strictEqual(lift.fuel, 11.17);
+  assert.strictEqual(lift.wear, 3.4);
+  assert.deepStrictEqual(C.entrySaving('off', C.DEFAULTS), { fuel: 0, wear: 0 });
+});
+
+test('lift and no commute days are not train days', () => {
+  const t = C.totals([
+    { date: '2026-11-02', type: 'train', fuel: 5 },
+    { date: '2026-11-03', type: 'lift', fuel: 11.17 },
+    { date: '2026-11-04', type: 'off', fuel: 0 }
+  ], '2026-11-20', false);
+  assert.strictEqual(t.trainDaysMonth, 1);
+  assert.strictEqual(t.month, 16.17);
+});
+
+test('a No commute day does not break the streak', () => {
+  // Fri 20 Nov today; active Mon 16 to Thu 19 except Wed 18 (holiday)
+  const recs = ['2026-11-16', '2026-11-17', '2026-11-19', '2026-11-20'].map(d => ({ date: d, kind: 'walk', miles: 1 }));
+  assert.strictEqual(C.exerciseTotals(recs, '2026-11-20').streak, 2);
+  assert.strictEqual(C.exerciseTotals(recs, '2026-11-20', { '2026-11-18': true }).streak, 4);
+});
+
+test('lift days are reworked with a new mpg, with no fare', () => {
+  const S = Object.assign({}, C.DEFAULTS), N = Object.assign({}, S, { mpg: 18 });
+  const ch = C.recalcFromSettings([{ id: 'l', date: '2026-11-03', type: 'lift', fuel: 11.17, mpg: 22, price: 1.59 },
+    { id: 'o', date: '2026-11-04', type: 'off', fuel: 0 }], S, N);
+  assert.strictEqual(ch.length, 1);
+  assert.strictEqual(ch[0].fare, null);
+  // 34 × 1.59 × 4.546 / 18
+  assert.strictEqual(ch[0].fuel, 13.65);
+});
+
 console.log('\n' + passed + ' passed' + (process.exitCode ? ', some FAILED' : ''));
