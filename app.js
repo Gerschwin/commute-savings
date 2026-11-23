@@ -319,7 +319,7 @@
     $('chipReturn').textContent = C.money(usual.fare);
     $('chipFull').textContent = C.money(s.fare);
     $('chipFullBtn').hidden = !usual.code;
-    $('chipSingles').textContent = C.money(s.single * 2);
+    $('chipSingles').textContent = C.money(usual.single * 2);
     var df = dayFare();
     document.querySelectorAll('[data-fare]').forEach(function (b) {
       var v = fareFor(b.dataset.fare);
@@ -633,7 +633,7 @@
     var s = state.settings;
     if (kind === 'return') return C.usualFare(s, selectedDate()).fare;
     if (kind === 'full') return s.fare;
-    return s.single * 2;
+    return C.usualFare(s, selectedDate()).single * 2;
   }
 
   document.querySelectorAll('[data-fare]').forEach(function (b) {

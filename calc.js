@@ -16,6 +16,7 @@
     discountOn: true,   // use the discount code fare while it is active
     discountCode: 'BB1',
     discountFare: 5.45, // Anytime Day Return with BB1 (Nov 2026)
+    discountSingle: 4.95, // Anytime Day Single with BB1 (Nov 2026)
     discountEnds: '',   // last day the code works, "YYYY-MM-DD", or '' if not known
     single: 5.5,        // Anytime Day Single, Airdrie–Glasgow Queen Street (Nov 2026)
     stationMiles: 3.6,  // drive-to-station round trip
@@ -291,8 +292,8 @@
   function usualFare(settings, dateISO) {
     var on = settings.discountOn && settings.discountFare > 0 &&
       (!settings.discountEnds || !dateISO || dateISO <= settings.discountEnds);
-    return on ? { fare: settings.discountFare, code: settings.discountCode || 'discount', expired: false }
-      : { fare: settings.fare, code: null,
+    return on ? { fare: settings.discountFare, single: settings.discountSingle, code: settings.discountCode || 'discount', expired: false }
+      : { fare: settings.fare, single: settings.single, code: null,
           expired: !!(settings.discountOn && settings.discountEnds && dateISO && dateISO > settings.discountEnds) };
   }
 
@@ -482,7 +483,7 @@
 
   /* ---------- settings validation ---------- */
   var FIELDS = ['price', 'mpg', 'commuteMiles', 'fare', 'single', 'stationMiles', 'stationMpg', 'wearPence', 'target',
-    'walkMiles', 'cycleMiles', 'walkMph', 'cycleMph', 'activeGoal', 'discountFare'];
+    'walkMiles', 'cycleMiles', 'walkMph', 'cycleMph', 'activeGoal', 'discountFare', 'discountSingle'];
 
   function validateSettings(raw) {
     // Settings saved by an older version may lack newer fields: fill them from the defaults.
@@ -510,6 +511,9 @@
     clean.discountEnds = isISODate(String(raw.discountEnds || '')) ? raw.discountEnds : '';
     if (!errors.discountFare && !errors.fare && clean.discountFare > clean.fare) {
       errors.discountFare = 'Should be less than the full fare';
+    }
+    if (!errors.discountSingle && !errors.single && clean.discountSingle > clean.single) {
+      errors.discountSingle = 'Should be less than the full single';
     }
     clean.weightUnit = ['kg', 'st', 'lb'].indexOf(raw.weightUnit) >= 0 ? raw.weightUnit : 'st';
     return { ok: Object.keys(errors).length === 0, errors: errors, settings: clean };

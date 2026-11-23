@@ -124,6 +124,8 @@ test('full £6.10 fare: walked £5.07, drove to station £3.34', () => {
 test('discount code stops after its end date and when switched off', () => {
   const s = Object.assign({}, C.DEFAULTS, { discountEnds: '2026-12-31' });
   assert.strictEqual(C.usualFare(s, '2026-12-31').fare, 5.45);
+  assert.strictEqual(C.usualFare(s, '2026-12-31').single, 4.95);
+  assert.strictEqual(C.usualFare(s, '2027-01-01').single, 5.5);
   const after = C.usualFare(s, '2027-01-01');
   assert.strictEqual(after.fare, 6.1);
   assert.strictEqual(after.expired, true);

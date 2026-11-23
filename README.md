@@ -42,7 +42,8 @@ With the brief's original figures (22 mpg, £1.59 a litre, £5.50 fare):
 Real ScotRail fares (Nov 2026): the Anytime Day Return is £5.45 with the
 **BB1 discount code**, which gives £5.72 and £3.99. Without the code the
 return is £6.10, which gives £5.07 and £3.34. The
-Anytime Day Single is £5.50, so a return is always the one to buy.
+Anytime Day Single is £5.50 (£4.95 with BB1), so a return is always the one
+to buy.
 
 Note: the original brief said the drove-to-station day comes to about £3.97.
 Using the formula above, it is £5.671 − £1.735 = £3.936, so £3.94. The tests
