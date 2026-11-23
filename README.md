@@ -136,6 +136,16 @@ and a changing line of encouragement.
 Add your **weight** (st & lb, kg or lb) and **height** (e.g. 5'10 or 178) in
 Settings for calories and steps. They stay on your phone.
 
+**Phone steps**: type the day's total from your phone in the Exercise card.
+Only the steps above what the app already has for that day (commute plus any
+walks you added) are counted, as easy walking at 2.5 mph, so nothing is
+counted twice. Saving again for the same day replaces the figure. Steps
+never change the money figures.
+
+Each logged day shows its miles, steps and calories, and the Calories box
+shows what the month's calories add up to in food. If you add your weight
+and height later, earlier days fill in too.
+
 How it's estimated:
 
 * **Steps**: step length is about 41.5% of your height walking, 65% running.

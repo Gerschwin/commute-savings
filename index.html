@@ -210,8 +210,8 @@
       <dl class="stats stats4">
         <div><dt>Walked</dt><dd id="exWalk">0</dd></div>
         <div><dt>Cycled</dt><dd id="exCycle">0</dd></div>
-        <div><dt>Steps</dt><dd id="exSteps">0</dd></div>
-        <div><dt>Calories</dt><dd id="exKcal">0</dd></div>
+        <div><dt>Steps</dt><dd id="exSteps">0</dd><p class="stat-note" id="exStepsDay"></p></div>
+        <div><dt>Calories</dt><dd id="exKcal">0</dd><p class="stat-note" id="exKcalFood"></p></div>
       </dl>
       <div class="progress ex-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="exProgress">
         <div class="progress-fill" id="exProgressFill"></div>
@@ -219,6 +219,12 @@
       <p class="progress-text"><span id="exGoalText"></span><span class="muted" id="exGoalTarget"></span></p>
       <p class="motivator" id="exMotivator"></p>
 
+      <form id="phoneForm" class="ex-form phone-form" novalidate>
+        <label class="field"><span>Phone steps</span><input name="steps" inputmode="numeric" autocomplete="off" placeholder="e.g. 12,500"></label>
+        <label class="field"><span>Day</span><input type="date" name="date"></label>
+        <p class="hint span2" id="phonePreview">Only steps above what the app already has for that day are added, as easy walking.</p>
+        <button type="submit" class="btn primary span2">Save phone steps</button>
+      </form>
       <form id="exForm" class="ex-form" novalidate>
         <fieldset class="seg span2">
           <legend class="sr-only">Activity</legend>

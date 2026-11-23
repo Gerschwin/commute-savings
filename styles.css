@@ -329,6 +329,8 @@ input { font-size: 16px; }
 /* ---------- exercise ---------- */
 .stats4 { grid-template-columns: repeat(2, 1fr); }
 @media (min-width: 420px) { .stats4 { grid-template-columns: repeat(4, 1fr); } }
+.stat-note { margin: 4px 0 0; font-size: .8rem; font-weight: 600; color: var(--accent-text); line-height: 1.25; }
+.stat-note:empty { display: none; }
 .stats dd small { font-family: var(--font-text); font-size: .8rem; font-weight: 600; color: var(--muted); margin-left: 2px; }
 .ex-progress { margin-top: 14px; }
 .ex-progress .progress-fill { background: var(--ok); }

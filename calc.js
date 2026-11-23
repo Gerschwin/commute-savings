@@ -452,6 +452,21 @@
     });
   }
 
+  /* Steps from the phone for a whole day. Only the steps above what the app
+     already has for that day (otherSteps) are added, as easy walking at
+     2.5 mph, since much of a day's steps is slow pottering about. Without a
+     height, a 175 cm step length is assumed. */
+  var EASY_MPH = 2.5;
+  function phoneWalk(total, otherSteps, profile) {
+    var extra = Math.max(0, Math.round((Number(total) || 0) - (Number(otherSteps) || 0)));
+    if (!extra) return { kind: 'walk', miles: 0, steps: 0, mins: 0, kcal: null, extra: 0 };
+    var p = Object.assign({}, profile, { heightCm: profile.heightCm > 0 ? profile.heightCm : 175 });
+    var miles = extra * stepLength(p.heightCm, 'walk') / M_PER_MILE;
+    var r = exerciseCalc({ kind: 'walk', miles: miles, steps: extra, mins: miles / EASY_MPH * 60 }, p);
+    r.extra = extra;
+    return r;
+  }
+
   /* "92", "92kg", "14st 7", "14st 7lb", "14 7", "14.5", "203lb" -> kg. unit is the default unit. */
   function parseWeight(str, unit) {
     var s = String(str == null ? '' : str).toLowerCase().trim();
@@ -583,6 +598,7 @@
     TYPES: TYPES,
     OPTIONAL: OPTIONAL,
     commuteExercise: commuteExercise,
+    phoneWalk: phoneWalk,
     round2: round2,
     fuelCostPerMile: fuelCostPerMile,
     drivingCost: drivingCost,

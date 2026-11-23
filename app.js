@@ -155,7 +155,7 @@
     if (!(miles > 0) && !(steps > 0)) return null;
     return {
       id: String(x.id || uid()), date: x.date, ts: Number(x.ts) || Date.now(),
-      kind: ['walk', 'run', 'cycle'].indexOf(x.kind) >= 0 ? x.kind : 'walk',
+      kind: ['walk', 'run', 'cycle', 'phone'].indexOf(x.kind) >= 0 ? x.kind : 'walk',
       label: String(x.label || '').slice(0, 80),
       miles: miles, steps: Math.round(steps), mins: Math.round(Number(x.mins) || 0),
       kcal: x.kcal == null || !isFinite(Number(x.kcal)) ? null : Math.round(Number(x.kcal))
@@ -163,12 +163,51 @@
   }
   function exPart(x) { return { kind: x.kind, miles: x.miles, steps: x.steps, mins: x.mins, kcal: x.kcal }; }
 
-  /* Every exercise record, commute ones included, newest first. */
+  /* Records logged before weight or height were set have no calories or
+     steps; work them out now from the miles, so adding them later fills
+     in the past too. */
+  function fillIn(x) {
+    var s = state.settings;
+    var needKcal = x.kcal == null && s.weightKg > 0;
+    var needSteps = !x.steps && x.kind !== 'cycle' && s.heightCm > 0;
+    if (!(x.miles > 0) || (!needKcal && !needSteps)) return x;
+    var r = C.exerciseCalc({ kind: x.kind, miles: x.miles, mins: x.mins }, s);
+    var y = Object.assign({}, x);
+    if (needKcal) y.kcal = r.kcal;
+    if (needSteps) y.steps = r.steps;
+    return y;
+  }
+  function entryExercise(e) {
+    return [e.ex, e.ex2].filter(Boolean).map(fillIn);
+  }
+  /* "4.8 mi walked, 10,460 steps, 430 kcal" for a train day. */
+  function exSummary(parts) {
+    if (!parts.length) return '';
+    var steps = 0, kcal = 0, anyKcal = false;
+    var bits = parts.map(function (x) {
+      steps += x.steps || 0;
+      if (x.kcal != null) { kcal += x.kcal; anyKcal = true; }
+      return x.miles + ' mi ' + (x.kind === 'cycle' ? 'cycled' : 'walked');
+    });
+    if (steps) bits.push(fmtInt(steps) + ' steps');
+    if (anyKcal) bits.push(fmtInt(kcal) + ' kcal');
+    return bits.join(', ');
+  }
+
+  /* Every exercise record, commute ones included, newest first. A phone
+     steps record becomes the walking above what the app already has that day. */
   function allExercise() {
-    var list = state.exercise.slice();
+    var list = state.exercise.filter(function (x) { return x.kind !== 'phone'; }).map(fillIn);
     state.entries.forEach(function (e) {
-      if (e.ex) list.push(Object.assign({ id: 'e:' + e.id, entryId: e.id, date: e.date, ts: e.ts, label: 'Commute' }, e.ex));
-      if (e.ex2) list.push(Object.assign({ id: 'e2:' + e.id, entryId: e.id, date: e.date, ts: e.ts, label: 'Commute' }, e.ex2));
+      if (e.ex) list.push(Object.assign({ id: 'e:' + e.id, entryId: e.id, date: e.date, ts: e.ts, label: 'Commute' }, fillIn(e.ex)));
+      if (e.ex2) list.push(Object.assign({ id: 'e2:' + e.id, entryId: e.id, date: e.date, ts: e.ts, label: 'Commute' }, fillIn(e.ex2)));
+    });
+    state.exercise.forEach(function (ph) {
+      if (ph.kind !== 'phone') return;
+      var other = 0;
+      list.forEach(function (x) { if (x.date === ph.date && x.kind !== 'cycle') other += x.steps || 0; });
+      var w = C.phoneWalk(ph.steps, other, state.settings);
+      list.push(Object.assign({ id: ph.id, date: ph.date, ts: ph.ts, label: 'Phone steps', phoneTotal: ph.steps, phoneOther: other }, w));
     });
     return list.sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (b.ts || 0) - (a.ts || 0); });
   }
@@ -232,9 +271,8 @@
     render();
     store.put('entries', [entry]).catch(saveFailed);
     if (!silent) {
-      var exNote = [entry.ex, entry.ex2].filter(Boolean).map(function (x) {
-        return ' · ' + x.miles + ' mi ' + (x.kind === 'cycle' ? 'cycled' : 'walked');
-      }).join('');
+      var exNote = exSummary(entryExercise(entry));
+      if (exNote) exNote = ' · ' + exNote;
       toast('Added ' + C.money(C.displayValue(entry, state.settings.includeWear)) + exNote + ' · ' + C.shortDate(entry.date), function () {
         removeEntry(entry.id, true);
         toast('Removed');
@@ -377,7 +415,8 @@
         el('div', null, [
           el('span', { class: 'when', text: C.shortDate(e.date) + (e.date.slice(0, 4) !== todayISO().slice(0, 4) ? ' ' + e.date.slice(0, 4) : '') }),
           el('span', { class: 'what', text: e.label || (e.type === 'custom' ? 'Other saving' : 'Train') }),
-          entrySub(e) ? el('span', { class: 'sub', text: entrySub(e) }) : null
+          entrySub(e) ? el('span', { class: 'sub', text: entrySub(e) }) : null,
+          exSummary(entryExercise(e)) ? el('span', { class: 'sub ex-sub', text: exSummary(entryExercise(e)) }) : null
         ]),
         el('span', { class: 'amt' + (v < 0 ? ' neg' : ''), text: C.money(v) }),
         del
@@ -714,6 +753,27 @@
   function fmtInt(n) { return Math.round(n).toLocaleString('en-GB'); }
 
   /* A rotating, honest motivator built from this month's numbers. */
+  /* A food the month's calories add up to, the biggest one that fits at least once. */
+  var FOODS = [
+    { kcal: 2500, one: 'a whole day of eating', many: 'whole days of eating' },
+    { kcal: 800, one: 'a takeaway curry', many: 'takeaway curries' },
+    { kcal: 330, one: 'a sausage roll', many: 'sausage rolls' },
+    { kcal: 230, one: 'a chocolate bar', many: 'chocolate bars' },
+    { kcal: 200, one: 'a pint of lager', many: 'pints of lager' },
+    { kcal: 90, one: 'a chocolate biscuit', many: 'chocolate biscuits' }
+  ];
+  function foodLine(kcal) {
+    if (!(kcal > 0)) return '';
+    for (var i = 0; i < FOODS.length; i++) {
+      var n = kcal / FOODS[i].kcal;
+      if (n >= 1) {
+        var whole = Math.floor(n * 2) / 2;
+        return '≈ ' + (whole === 1 ? FOODS[i].one : String(whole).replace('.5', '½') + ' ' + FOODS[i].many);
+      }
+    }
+    return '≈ ' + Math.round(kcal / 90 * 10) / 10 + ' of a biscuit';
+  }
+
   function motivator(t, s) {
     var lines = [];
     if (t.kcal >= 3500) lines.push('That\'s roughly ' + (t.kcal / 3500).toFixed(1) + ' lb of body fat worth of energy this month.');
@@ -739,6 +799,8 @@
     $('exCycle').innerHTML = t.cycle + '<small>mi</small>';
     $('exSteps').textContent = t.steps ? fmtInt(t.steps) : (s.heightCm > 0 ? '0' : '–');
     $('exKcal').textContent = t.kcal ? fmtInt(t.kcal) : (s.weightKg > 0 ? '0' : '–');
+    $('exKcalFood').textContent = foodLine(t.kcal);
+    $('exStepsDay').textContent = t.steps && t.activeDays ? 'about ' + fmtInt(t.steps / t.activeDays) + ' a day' : '';
 
     var pct = s.activeGoal > 0 ? Math.min(100, t.miles / s.activeGoal * 100) : 0;
     $('exProgressFill').style.width = pct + '%';
@@ -757,17 +819,23 @@
       var bits = [x.miles + ' mi'];
       if (x.steps) bits.push(fmtInt(x.steps) + ' steps');
       if (x.mins) bits.push(x.mins + ' min');
+      var what = KIND_WORD[x.kind] + ', ' + bits.join(', ');
+      if (x.phoneTotal != null) {
+        what = fmtInt(x.phoneTotal) + ' on the phone' + (x.extra
+          ? ', ' + fmtInt(x.extra) + ' more than logged, ' + x.miles + ' mi'
+          : ', no more than already logged');
+      }
       var children = [
         el('div', null, [
           el('span', { class: 'when', text: C.shortDate(x.date) + ' · ' + (x.entryId ? 'Commute' : (x.label || KIND_WORD[x.kind])) }),
-          el('span', { class: 'what', text: KIND_WORD[x.kind] + ', ' + bits.join(', ') })
+          el('span', { class: 'what', text: what })
         ]),
         el('span', { class: 'amt', text: x.kcal != null ? fmtInt(x.kcal) + ' kcal' : '' })
       ];
       if (x.entryId) {
         children.push(el('span', { class: 'del', title: 'Delete the train day to remove this', 'aria-hidden': 'true' }));
       } else {
-        var del = el('button', { type: 'button', class: 'del', 'aria-label': 'Delete ' + KIND_WORD[x.kind].toLowerCase() + ' on ' + C.shortDate(x.date) });
+        var del = el('button', { type: 'button', class: 'del', 'aria-label': 'Delete ' + (x.phoneTotal != null ? 'phone steps' : KIND_WORD[x.kind].toLowerCase()) + ' on ' + C.shortDate(x.date) });
         del.innerHTML = DELETE_ICON;
         del.addEventListener('click', function () { removeExercise(x.id); });
         children.push(del);
@@ -842,6 +910,48 @@
     exPreview();
   });
   $('exOpenSettings').addEventListener('click', function () { openSettings(); });
+
+  /* Phone steps: one total per day; saving again for the same day replaces it. */
+  var phoneForm = $('phoneForm');
+  function phonePreview() {
+    var n = parseInt(String(phoneForm.elements.steps.value).replace(/[,\s]/g, ''), 10) || 0;
+    var date = C.isISODate(phoneForm.elements.date.value) ? phoneForm.elements.date.value : todayISO();
+    var other = 0;
+    allExercise().forEach(function (x) { if (x.date === date && x.phoneTotal == null && x.kind !== 'cycle') other += x.steps || 0; });
+    if (!n) {
+      $('phonePreview').textContent = other ? 'The app has ' + fmtInt(other) + ' steps for that day so far. Only steps above that are added.'
+        : 'Only steps above what the app already has for that day are added, as easy walking.';
+      return;
+    }
+    var w = C.phoneWalk(n, other, state.settings);
+    $('phonePreview').textContent = w.extra
+      ? fmtInt(w.extra) + ' more than logged: ' + w.miles + ' mi' + (w.kcal != null ? ', ' + fmtInt(w.kcal) + ' kcal' : '') + '.'
+      : 'No more than the ' + fmtInt(other) + ' steps already logged for that day, so nothing extra.';
+  }
+  phoneForm.addEventListener('input', phonePreview);
+  phoneForm.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var n = parseInt(String(phoneForm.elements.steps.value).replace(/[,\s]/g, ''), 10) || 0;
+    if (!(n > 0) || n > 100000) { $('phonePreview').textContent = n > 100000 ? 'That looks too big, check the figure.' : 'Enter the steps from your phone.'; return; }
+    var date = C.isISODate(phoneForm.elements.date.value) ? phoneForm.elements.date.value : todayISO();
+    var old = state.exercise.filter(function (x) { return x.kind === 'phone' && x.date === date; });
+    var rec = sanitiseEx({ id: uid(), ts: Date.now(), date: date, kind: 'phone', steps: n, miles: 0 });
+    state.exercise = state.exercise.filter(function (x) { return old.indexOf(x) < 0; });
+    old.forEach(function (x) { store.del('exercise', x.id).catch(saveFailed); });
+    state.exercise.push(rec);
+    store.put('exercise', [rec]).catch(saveFailed);
+    render();
+    phoneForm.elements.steps.value = '';
+    phonePreview();
+    var shown = allExercise().filter(function (x) { return x.id === rec.id; })[0];
+    toast('Saved ' + fmtInt(n) + ' steps for ' + C.shortDate(date) + (shown && shown.extra ? ' · +' + shown.miles + ' mi' + (shown.kcal != null ? ', ' + fmtInt(shown.kcal) + ' kcal' : '') : ''), function () {
+      state.exercise = state.exercise.filter(function (x) { return x.id !== rec.id; }).concat(old);
+      store.del('exercise', rec.id).catch(saveFailed);
+      if (old.length) store.put('exercise', old).catch(saveFailed);
+      render();
+      toast('Undone');
+    });
+  });
 
   /* ================= settings form ================= */
   var form = $('settingsForm');
@@ -1190,6 +1300,8 @@
     fillForm.elements.date.max = t;
     if (!fillForm.elements.date.value) fillForm.elements.date.value = t;
     exForm.elements.date.max = t;
+    phoneForm.elements.date.max = t;
+    if (!phoneForm.elements.date.value) phoneForm.elements.date.value = t;
     if (!exForm.elements.date.value) exForm.elements.date.value = t;
     $('logDate').max = t;
     if (!$('logDate').value || $('logDate').value > t) $('logDate').value = t;

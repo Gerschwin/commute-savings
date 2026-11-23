@@ -392,4 +392,19 @@ test('lift days are reworked with a new mpg, with no fare', () => {
   assert.strictEqual(ch[0].fuel, 13.65);
 });
 
+test('phone steps add only the extra, at an easy pace', () => {
+  const p = Object.assign({}, C.DEFAULTS, { weightKg: 90, heightCm: 178 });
+  const r = C.phoneWalk(14000, 10457, p);
+  assert.strictEqual(r.extra, 3543);
+  assert.strictEqual(r.steps, 3543);
+  // 3543 × 0.7387 m = 2617 m = 1.63 mi; at 2.5 mph that is 39 min
+  assert.strictEqual(r.miles, 1.63);
+  assert.strictEqual(r.mins, 39);
+  assert.ok(r.kcal > 80 && r.kcal < 140, 'kcal ' + r.kcal);
+  // fewer phone steps than the app already has: nothing added
+  assert.strictEqual(C.phoneWalk(9000, 10457, p).miles, 0);
+  // no height: a 175 cm step is assumed
+  assert.ok(C.phoneWalk(5000, 0, C.DEFAULTS).miles > 2);
+});
+
 console.log('\n' + passed + ' passed' + (process.exitCode ? ', some FAILED' : ''));
