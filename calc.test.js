@@ -443,4 +443,38 @@ test('totals and chart use the pay month', () => {
   assert.strictEqual(cum[29], 5);
 });
 
+test('Milngavie route: 46.2 miles driving, £6.80 BB1 return', () => {
+  const s = C.effectiveSettings(C.routeSettings(C.DEFAULTS, 'r2'), null, null, '2026-11-23');
+  assert.strictEqual(s.commuteMiles, 46.2);
+  assert.strictEqual(s.fare, 6.8);
+  assert.strictEqual(s.fareCode, 'BB1');
+  assert.strictEqual(C.round2(C.drivingCost(s)), 15.18);
+  assert.deepStrictEqual(C.entrySaving('train', s), { fuel: 8.38, wear: 4.62 });
+  assert.deepStrictEqual(C.entrySaving('lift', s), { fuel: 15.18, wear: 4.62 });
+});
+
+test('second route off or not picked leaves the usual commute', () => {
+  assert.strictEqual(C.routeSettings(C.DEFAULTS, '').commuteMiles, 34);
+  assert.strictEqual(C.routeSettings(Object.assign({}, C.DEFAULTS, { route2On: false }), 'r2').commuteMiles, 34);
+});
+
+test('second route uses the full return once the code ends', () => {
+  const st = Object.assign({}, C.DEFAULTS, { discountEnds: '2026-12-31', route2Full: 7.6 });
+  assert.strictEqual(C.usualFare(C.routeSettings(st, 'r2'), '2027-01-05').fare, 7.6);
+  assert.strictEqual(C.usualFare(C.routeSettings(Object.assign({}, st, { route2Full: 0 }), 'r2'), '2027-01-05').fare, 6.8);
+});
+
+test('recalc keeps a route day on its own miles', () => {
+  const e = { id: 'r', date: '2026-11-23', type: 'train', fuel: 8.38, fare: 6.8, mpg: 22, price: 1.59, route: 'Milngavie', miles: 46.2 };
+  const ch = C.recalcFromSettings([e], C.DEFAULTS, Object.assign({}, C.DEFAULTS, { mpg: 25 }));
+  // 46.2 mi at 25 mpg = £13.36, less £6.80
+  assert.strictEqual(ch[0].fuel, 6.56);
+});
+
+test('second route settings are checked', () => {
+  const bad = C.validateSettings(Object.assign({}, C.DEFAULTS, { route2Miles: '', route2Fare: '' }));
+  assert.ok(bad.errors.route2Miles && bad.errors.route2Fare);
+  assert.ok(C.validateSettings(Object.assign({}, C.DEFAULTS, { route2On: false, route2Miles: '' })).ok);
+});
+
 console.log('\n' + passed + ' passed' + (process.exitCode ? ', some FAILED' : ''));

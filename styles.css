@@ -395,3 +395,8 @@ input { font-size: 16px; }
 @media (prefers-reduced-motion: reduce) { .sync-btn.spin svg { animation: none; opacity: .5; } }
 .sync-dot { position: absolute; top: 9px; right: 9px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); border: 2px solid var(--surface); }
 .sync-dot.err { background: #d9534f; }
+
+/* ---------- route switch ---------- */
+.route-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; background: var(--bg); border-radius: 14px; margin: 0 0 14px; }
+.route-opt { min-height: 44px; border: 0; border-radius: 10px; background: transparent; color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
+.route-opt[aria-pressed="true"] { background: var(--btn-bg); color: var(--btn-text); }

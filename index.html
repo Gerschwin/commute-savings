@@ -80,6 +80,10 @@
           <input type="date" id="logDate" required>
         </label>
       </div>
+      <div class="route-switch" id="routeSwitch" role="group" aria-label="Route" hidden>
+        <button type="button" class="route-opt" data-route="" aria-pressed="true">Work</button>
+        <button type="button" class="route-opt" data-route="r2" aria-pressed="false" id="route2Btn">Milngavie</button>
+      </div>
       <div class="fare-row">
         <label class="field fare-field">
           <span>Ticket cost today, both ways (£)</span>
@@ -320,6 +324,21 @@
           <label class="field"><span>Mpg on short station runs</span><input name="stationMpg" inputmode="decimal" autocomplete="off"><em class="error" data-err="stationMpg"></em></label>
           <label class="field"><span>Van wear (pence per mile)</span><input name="wearPence" inputmode="decimal" autocomplete="off"><em class="error" data-err="wearPence"></em></label>
           <label class="field"><span>Monthly target (£)</span><input name="target" inputmode="decimal" data-money autocomplete="off"><em class="error" data-err="target"></em></label>
+          <fieldset class="discount span-all">
+            <legend>Second route</legend>
+            <label class="toggle">
+              <input type="checkbox" name="route2On" role="switch">
+              <span class="toggle-track" aria-hidden="true"></span>
+              <span>Show it in Log a day</span>
+            </label>
+            <div class="discount-grid">
+              <label class="field span2"><span>Name</span><input name="route2Name" autocomplete="off" maxlength="30" placeholder="e.g. Milngavie"></label>
+              <label class="field span2"><span>Driving it, round trip (miles)</span><input name="route2Miles" inputmode="decimal" autocomplete="off"><em class="error" data-err="route2Miles"></em></label>
+              <label class="field"><span>Return, code (£)</span><input name="route2Fare" inputmode="decimal" data-money autocomplete="off"><em class="error" data-err="route2Fare"></em></label>
+              <label class="field"><span>Return, full (£)</span><input name="route2Full" inputmode="decimal" data-money autocomplete="off" placeholder="not known"><em class="error" data-err="route2Full"></em></label>
+            </div>
+            <p class="hint">For days you'd have driven a longer way, e.g. home to work, work to Milngavie, then home. The code return is used while your discount code is active; without the code, the full return (or the code fare if that's blank).</p>
+          </fieldset>
           <fieldset class="discount span-all pay-month">
             <legend>Month runs from</legend>
             <label class="field"><span>Month starts on</span>

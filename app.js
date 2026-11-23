@@ -134,6 +134,8 @@
       if (e[k] != null && isFinite(Number(e[k]))) out[k] = Number(e[k]);
     });
     if (e.code) out.code = String(e.code).slice(0, 20);
+    if (e.route) out.route = String(e.route).slice(0, 30);
+    if (Number(e.miles) > 0) out.miles = Number(e.miles);
     ['ex', 'ex2'].forEach(function (k) {
       if (e[k]) { var ex = sanitiseEx(Object.assign({ date: e.date }, e[k])); if (ex) out[k] = exPart(ex); }
     });
@@ -226,7 +228,16 @@
 
   /* Settings a train day logged right now would use. */
   function current() {
-    return C.effectiveSettings(state.settings, state.stats, dayFare(), selectedDate());
+    return C.effectiveSettings(routeNow(), state.stats, dayFare(), selectedDate());
+  }
+
+  /* Second route picked in Log a day ('' = the usual commute). */
+  var logRoute = '';
+  function routeNow() { return C.routeSettings(state.settings, state.settings.route2On ? logRoute : ''); }
+  function setRoute(r) {
+    logRoute = r;
+    $('dayFare').value = '';
+    render();
   }
 
   /* ================= DOM helpers ================= */
@@ -318,12 +329,17 @@
       entry.fare = C.round2(eff.fare);
       if (eff.fareCode) entry.code = eff.fareCode;
     }
+    if (mode !== 'off' && eff.routeName) {
+      entry.route = eff.routeName;
+      entry.miles = eff.commuteMiles;
+    }
     if (mode !== 'off') { entry.mpg = Math.round(eff.mpg * 10) / 10; entry.price = Math.round(eff.price * 1000) / 1000; }
     var how = mode === 'station' ? 'station' : /cycled/i.test(label) ? 'cycled' : /walked/i.test(label) ? 'walked' : '';
     var parts = C.commuteExercise(how, state.settings);
     if (parts[0]) entry.ex = parts[0];
     if (parts[1]) entry.ex2 = parts[1];
     addEntry(entry);
+    if (logRoute) setRoute('');
   }
 
   function parseAmount(str) {
@@ -365,17 +381,24 @@
     var eff = current();
     var tr = C.displayValue(C.entrySaving('train', eff), s.includeWear);
     var st = C.displayValue(C.entrySaving('station', eff), s.includeWear);
-    var usual = C.usualFare(s, selectedDate());
-    var basis = 'Ticket ' + C.money(eff.fare) + (eff.fareCode ? ' with ' + eff.fareCode : '') + '. ';
+    var rs = routeNow();
+    $('routeSwitch').hidden = !s.route2On;
+    $('route2Btn').textContent = s.route2Name || 'Second route';
+    document.querySelectorAll('.route-opt').forEach(function (b) {
+      b.setAttribute('aria-pressed', (b.dataset.route || '') === (s.route2On ? logRoute : '') ? 'true' : 'false');
+    });
+    var usual = C.usualFare(rs, selectedDate());
+    var basis = (eff.routeName ? 'Via ' + eff.routeName + ', ' + eff.commuteMiles + ' miles driving. ' : '') + 'Ticket ' + C.money(eff.fare) + (eff.fareCode ? ' with ' + eff.fareCode : '') + '. ';
     if (usual.expired) basis = 'Code ' + (s.discountCode || '') + ' ended ' + C.shortDate(s.discountEnds) + ', so the full fare is used. ';
     $('basis').textContent = basis + 'Working out with ' + eff.mpg.toFixed(1) + ' mpg' + (eff.source.mpg === 'fills' ? ' (real)' : '') +
       ' and petrol at ' + (eff.price * 100).toFixed(1) + 'p a litre' + (eff.source.price === 'fills' ? ' (last fill)' : '') + '.';
     $('dayFare').placeholder = usual.fare.toFixed(2);
     $('chipReturnName').textContent = usual.code ? usual.code + ' return' : 'Day return';
     $('chipReturn').textContent = C.money(usual.fare);
-    $('chipFull').textContent = C.money(s.fare);
-    $('chipFullBtn').hidden = !usual.code;
+    $('chipFull').textContent = C.money(rs.fare);
+    $('chipFullBtn').hidden = !usual.code || (eff.routeName && !(s.route2Full > 0));
     $('chipSingles').textContent = C.money(usual.single * 2);
+    $('chipSingles').parentNode.hidden = !!eff.routeName;
     var df = dayFare();
     document.querySelectorAll('[data-fare]').forEach(function (b) {
       var v = fareFor(b.dataset.fare);
@@ -407,8 +430,9 @@
   function entrySub(e) {
     var fuel = e.mpg ? e.mpg.toFixed(1) + ' mpg · ' + (e.price * 100).toFixed(1) + 'p/L' : '';
     if (e.type === 'off') return 'Holiday, sick or home. Keeps your streak.';
-    if (e.type === 'lift') return 'No fare, whole drive saved' + (fuel ? ' · ' + fuel : '');
-    if (e.fare != null) return 'Ticket ' + C.money(e.fare) + (e.code ? ' (' + e.code + ')' : '') + (fuel ? ' · ' + fuel : '');
+    var via = e.route ? 'Via ' + e.route + ' (' + e.miles + ' mi) · ' : '';
+    if (e.type === 'lift') return via + 'No fare, whole drive saved' + (fuel ? ' · ' + fuel : '');
+    if (e.fare != null) return via + 'Ticket ' + C.money(e.fare) + (e.code ? ' (' + e.code + ')' : '') + (fuel ? ' · ' + fuel : '');
     return '';
   }
 
@@ -735,9 +759,12 @@
   });
 
   $('logDate').addEventListener('change', render);
+  document.querySelectorAll('.route-opt').forEach(function (b) {
+    b.addEventListener('click', function () { setRoute(b.dataset.route || ''); });
+  });
 
   function fareFor(kind) {
-    var s = state.settings;
+    var s = routeNow();
     if (kind === 'return') return C.usualFare(s, selectedDate()).fare;
     if (kind === 'full') return s.fare;
     return C.usualFare(s, selectedDate()).single * 2;
@@ -986,6 +1013,11 @@
     form.elements.monthStart.value = s.monthStart || 'payday';
     form.elements.payDay.value = String(s.payDay || 28);
     form.elements.payWeekend.checked = !!s.payWeekend;
+    form.elements.route2On.checked = !!s.route2On;
+    form.elements.route2Name.value = s.route2Name || '';
+    form.elements.route2Miles.value = s.route2Miles ? String(s.route2Miles) : '';
+    form.elements.route2Fare.value = s.route2Fare ? moneyText(s.route2Fare) : '';
+    form.elements.route2Full.value = s.route2Full ? moneyText(s.route2Full) : '';
     form.elements.weightUnit.value = s.weightUnit || 'st';
     form.elements.weightKg.value = C.formatWeight(s.weightKg, s.weightUnit);
     form.elements.heightCm.value = s.heightCm ? C.formatHeight(s.heightCm) : '';
@@ -996,7 +1028,7 @@
 
   function clearSettingsErrors() {
     form.querySelectorAll('[data-err]').forEach(function (n) { n.textContent = ''; });
-    C.FIELDS.concat(C.OPTIONAL, ['weightKg', 'heightCm', 'payDay']).forEach(function (k) { form.elements[k].removeAttribute('aria-invalid'); });
+    C.FIELDS.concat(C.OPTIONAL, ['weightKg', 'heightCm', 'payDay', 'route2Miles', 'route2Fare', 'route2Full']).forEach(function (k) { form.elements[k].removeAttribute('aria-invalid'); });
   }
 
   function readSettingsForm() {
@@ -1011,6 +1043,8 @@
     raw.monthStart = form.elements.monthStart.value;
     raw.payDay = form.elements.payDay.value;
     raw.payWeekend = form.elements.payWeekend.checked;
+    ['route2Name', 'route2Miles', 'route2Fare', 'route2Full'].forEach(function (k) { raw[k] = form.elements[k].value; });
+    raw.route2On = form.elements.route2On.checked;
     raw.weightUnit = form.elements.weightUnit.value;
     var w = C.parseWeight(form.elements.weightKg.value, raw.weightUnit);
     var h = C.parseHeight(form.elements.heightCm.value);
