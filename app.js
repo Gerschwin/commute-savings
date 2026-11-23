@@ -432,8 +432,9 @@
     $('offHint').hidden = isTrip;
     $('fareChips').hidden = oneOff;
     var usual = C.usualFare(rs, selectedDate());
-    var basis = (eff.routeName ? (isTrip ? 'Trip to ' : 'Via ') + eff.routeName + ', ' + eff.commuteMiles + ' miles driving. ' : '') + 'Ticket ' + C.money(eff.fare) + (eff.fareCode ? ' with ' + eff.fareCode : '') + '. ';
-    if (usual.expired) basis = 'Code ' + (s.discountCode || '') + ' ended ' + C.shortDate(s.discountEnds) + ', so the full fare is used. ';
+    var where = (isTrip ? 'Trip to ' : '') + (eff.routeName || 'Work') + ', ' + eff.commuteMiles + ' miles driving. ';
+    var basis = where + 'Ticket ' + C.money(eff.fare) + (eff.fareCode ? ' with ' + eff.fareCode : '') + '. ';
+    if (usual.expired) basis = where + 'Code ' + (s.discountCode || '') + ' ended ' + C.shortDate(s.discountEnds) + ', so the full fare is used. ';
     $('basis').textContent = basis + 'Working out with ' + eff.mpg.toFixed(1) + ' mpg' + (eff.source.mpg === 'fills' ? ' (real)' : '') +
       ' and petrol at ' + (eff.price * 100).toFixed(1) + 'p a litre' + (eff.source.price === 'fills' ? ' (last fill)' : '') + '.';
     $('dayFare').placeholder = oneOff ? 'What the ticket cost' : usual.fare.toFixed(2);
