@@ -34,7 +34,9 @@
     route2Name: 'Milngavie',
     route2Miles: 46.2,  // driving it: home to work 17, work to Milngavie 8.6, Milngavie to home 20.6
     route2Fare: 6.8,    // Anytime Day Return Airdrie to Milngavie with the code (Nov 2026)
-    route2Full: 0,      // full return without the code, 0 = not known (the code fare is used)
+    route2Full: 7.6,    // full return without the code, 0 = not known (the code fare is used)
+    route2CodeSingle: 6.55, // single with the code, 0 = half the code return
+    route2Single: 7.3,  // full single, 0 = half the full return
     homeLeg: 1.6,       // home to your station, each way (miles)
     workLeg: 0.8,       // Glasgow station to work, each way (miles); 0 if none
     walkMph: 3,         // usual walking pace
@@ -354,8 +356,8 @@
     var code = settings.route2Fare, full = settings.route2Full > 0 ? settings.route2Full : code;
     return Object.assign({}, settings, {
       commuteMiles: settings.route2Miles,
-      fare: full, single: full / 2,
-      discountFare: code, discountSingle: code / 2,
+      fare: full, single: settings.route2Single > 0 ? settings.route2Single : full / 2,
+      discountFare: code, discountSingle: settings.route2CodeSingle > 0 ? settings.route2CodeSingle : code / 2,
       routeName: settings.route2Name || 'Second route'
     });
   }
@@ -664,7 +666,7 @@
     }
     clean.route2On = !!raw.route2On;
     clean.route2Name = String(raw.route2Name || '').trim().slice(0, 30) || 'Second route';
-    ['route2Miles', 'route2Fare', 'route2Full'].forEach(function (k) {
+    ['route2Miles', 'route2Fare', 'route2Full', 'route2CodeSingle', 'route2Single'].forEach(function (k) {
       var v = typeof raw[k] === 'number' ? raw[k] : parseFloat(String(raw[k] == null || raw[k] === '' ? '0' : raw[k]).replace(/[£,\s]/g, ''));
       if (!isFinite(v) || v < 0) { errors[k] = 'Enter 0 or more'; return; }
       clean[k] = v;

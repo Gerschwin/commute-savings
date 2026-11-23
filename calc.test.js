@@ -471,6 +471,13 @@ test('recalc keeps a route day on its own miles', () => {
   assert.strictEqual(ch[0].fuel, 6.56);
 });
 
+test('Milngavie fares: £7.60 full return, singles £6.55 BB1 and £7.30', () => {
+  const r = C.routeSettings(C.DEFAULTS, 'r2');
+  assert.strictEqual(C.usualFare(r, '2026-11-23').single, 6.55);
+  const off = C.routeSettings(Object.assign({}, C.DEFAULTS, { discountOn: false }), 'r2');
+  assert.deepStrictEqual([C.usualFare(off, '2026-11-23').fare, C.usualFare(off, '2026-11-23').single], [7.6, 7.3]);
+});
+
 test('second route settings are checked', () => {
   const bad = C.validateSettings(Object.assign({}, C.DEFAULTS, { route2Miles: '', route2Fare: '' }));
   assert.ok(bad.errors.route2Miles && bad.errors.route2Fare);

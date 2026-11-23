@@ -67,7 +67,8 @@ Some days you'd have driven a longer way: home to work (17 miles), work to
 Milngavie (8.6), then Milngavie to home (20.6), 46.2 miles in all. In **Log a
 day**, tap **Milngavie** above the ticket box before tapping how you got to
 the station. The day is then worked out with 46.2 miles of driving and the
-Airdrie to Milngavie return (£6.80 with BB1), and the log shows "Via
+Airdrie to Milngavie return (£6.80 with BB1, £7.60 full; singles £6.55 with
+BB1, £7.30 full), and the log shows "Via
 Milngavie". It goes back to **Work** after each day you log.
 
 With the Settings figures (22 mpg, £1.59 a litre) driving it costs £15.18, so
@@ -75,8 +76,7 @@ a train day saves £8.38 (plus £4.62 wear), drove to station £6.64, and a lift
 £15.18.
 
 Change the name, miles and fares in Settings under **Second route**, or
-switch it off. If you know the full return without the code, add it, and it's
-used once the code ends.
+switch it off. The full fares are used once the code ends.
 
 ### Discount code (BB1)
 

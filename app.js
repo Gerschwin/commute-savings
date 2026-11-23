@@ -398,7 +398,6 @@
     $('chipFull').textContent = C.money(rs.fare);
     $('chipFullBtn').hidden = !usual.code || (eff.routeName && !(s.route2Full > 0));
     $('chipSingles').textContent = C.money(usual.single * 2);
-    $('chipSingles').parentNode.hidden = !!eff.routeName;
     var df = dayFare();
     document.querySelectorAll('[data-fare]').forEach(function (b) {
       var v = fareFor(b.dataset.fare);
@@ -1017,7 +1016,7 @@
     form.elements.route2Name.value = s.route2Name || '';
     form.elements.route2Miles.value = s.route2Miles ? String(s.route2Miles) : '';
     form.elements.route2Fare.value = s.route2Fare ? moneyText(s.route2Fare) : '';
-    form.elements.route2Full.value = s.route2Full ? moneyText(s.route2Full) : '';
+    ['route2Full', 'route2CodeSingle', 'route2Single'].forEach(function (k) { form.elements[k].value = s[k] ? moneyText(s[k]) : ''; });
     form.elements.weightUnit.value = s.weightUnit || 'st';
     form.elements.weightKg.value = C.formatWeight(s.weightKg, s.weightUnit);
     form.elements.heightCm.value = s.heightCm ? C.formatHeight(s.heightCm) : '';
@@ -1028,7 +1027,7 @@
 
   function clearSettingsErrors() {
     form.querySelectorAll('[data-err]').forEach(function (n) { n.textContent = ''; });
-    C.FIELDS.concat(C.OPTIONAL, ['weightKg', 'heightCm', 'payDay', 'route2Miles', 'route2Fare', 'route2Full']).forEach(function (k) { form.elements[k].removeAttribute('aria-invalid'); });
+    C.FIELDS.concat(C.OPTIONAL, ['weightKg', 'heightCm', 'payDay', 'route2Miles', 'route2Fare', 'route2Full', 'route2CodeSingle', 'route2Single']).forEach(function (k) { form.elements[k].removeAttribute('aria-invalid'); });
   }
 
   function readSettingsForm() {
@@ -1043,7 +1042,7 @@
     raw.monthStart = form.elements.monthStart.value;
     raw.payDay = form.elements.payDay.value;
     raw.payWeekend = form.elements.payWeekend.checked;
-    ['route2Name', 'route2Miles', 'route2Fare', 'route2Full'].forEach(function (k) { raw[k] = form.elements[k].value; });
+    ['route2Name', 'route2Miles', 'route2Fare', 'route2Full', 'route2CodeSingle', 'route2Single'].forEach(function (k) { raw[k] = form.elements[k].value; });
     raw.route2On = form.elements.route2On.checked;
     raw.weightUnit = form.elements.weightUnit.value;
     var w = C.parseWeight(form.elements.weightKg.value, raw.weightUnit);
@@ -1619,6 +1618,8 @@
       state.fills = (res[2] || []).map(sanitiseFill).filter(Boolean);
       state.exercise = (res[3] || []).map(sanitiseEx).filter(Boolean);
       if (res[1]) {
+        // v1.14.0 saved the Milngavie full return as 0 (not known); fill in the real fare once.
+        if (res[1].route2Full === 0 && res[1].route2Single == null) res[1].route2Full = C.DEFAULTS.route2Full;
         var v = C.validateSettings(res[1]);
         if (v.ok) state.settings = v.settings;
       }
