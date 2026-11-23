@@ -63,8 +63,10 @@ used (and the code, if one applied), so the log shows it.
 
 ### Trips (Milngavie and anywhere else)
 
-Above the ticket box in **Log a day** you pick the journey: **Work** (the usual
-commute), any **saved trip**, or **One-off**. It goes back to Work after each
+Above the ticket box in **Log a day**, the **Journey** dropdown lists **Work**
+(the usual commute), every **saved trip** and **One-off trip**, each with its
+driving miles and miles walked (for example "Milngavie · 46.2 mi drive · 6.2 mi
+walk"). Under it, the walking legs are spelled out. It goes back to Work after each
 day you log.
 
 * **Saved trips** live in Settings under **Saved trips**: a name, the miles

@@ -457,3 +457,7 @@ input { font-size: 16px; }
 .trip-row .trip-del { margin-top: 10px; }
 .trips-set #addTrip { margin-top: 12px; }
 .other-days:has(#offBtn[hidden]) { grid-template-columns: 1fr; }
+
+.journey { margin: 0 0 14px; }
+.journey .hint { margin: 6px 0 0; }
+.journey .select { font-weight: 600; }

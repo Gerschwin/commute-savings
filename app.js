@@ -255,27 +255,42 @@
     if (r !== 'oneoff') { $('oneOffName').value = ''; $('oneOffMiles').value = ''; }
     render();
   }
+  /* Miles walked on a walked day, and the legs, for a journey's settings. */
+  function walkInfo(rs, name) {
+    var legs = [];
+    if (rs.homeLeg > 0) legs.push(rs.homeLeg + ' to the station');
+    var work = rs.tripWork === undefined || rs.tripWork ? Number(state.settings.workLeg) || 0 : 0;
+    if (work > 0) legs.push(work + ' station to work');
+    var extra = C.round2((Number(rs.workLeg) || 0) - work);
+    if (extra > 0) legs.push(extra + ' at ' + name);
+    var total = C.commuteExercise('walked', rs).reduce(function (a, p) { return a + p.miles; }, 0);
+    return { legs: legs, total: Math.round(total * 10) / 10 };
+  }
   var routeSig = '';
   function renderRoutes() {
-    var trips = state.settings.trips || [];
-    if (logRoute && logRoute !== 'oneoff' && !C.tripFor(state.settings, logRoute)) logRoute = '';
-    var opts = [{ id: '', name: 'Work' }].concat(trips.map(function (t) { return { id: t.id, name: t.name }; }), [{ id: 'oneoff', name: 'One-off' }]);
-    var sig = JSON.stringify(opts);
+    var s = state.settings, trips = s.trips || [];
+    if (logRoute && logRoute !== 'oneoff' && !C.tripFor(s, logRoute)) logRoute = '';
+    var opts = [{ id: '', name: 'Work', rs: s }].concat(trips.map(function (t) {
+      return { id: t.id, name: t.name, rs: C.routeSettings(s, t) };
+    }));
+    var text = opts.map(function (o) {
+      var w = walkInfo(o.rs, o.name);
+      return o.name + ' · ' + o.rs.commuteMiles + ' mi drive' + (w.total ? ' · ' + w.total + ' mi walk' : '');
+    }).concat(['One-off trip…']);
+    var sig = JSON.stringify(text);
+    var sel = $('journeySel');
     if (sig !== routeSig) {
       routeSig = sig;
-      var box = $('routeSwitch');
-      box.textContent = '';
-      var n = opts.length;
-      box.style.gridTemplateColumns = 'repeat(' + (n <= 3 ? n : n === 4 ? 2 : 3) + ', minmax(0, 1fr))';
-      opts.forEach(function (o) {
-        var b = el('button', { type: 'button', class: 'route-opt', 'data-route': o.id, text: o.name });
-        b.addEventListener('click', function () { setRoute(o.id); });
-        box.appendChild(b);
-      });
+      sel.textContent = '';
+      opts.forEach(function (o, i) { sel.appendChild(el('option', { value: o.id, text: text[i] })); });
+      sel.appendChild(el('option', { value: 'oneoff', text: 'One-off trip…' }));
     }
-    document.querySelectorAll('.route-opt').forEach(function (b) {
-      b.setAttribute('aria-pressed', (b.getAttribute('data-route') || '') === logRoute ? 'true' : 'false');
-    });
+    sel.value = logRoute;
+    var rs = routeNow(), name = rs.routeName || 'Work';
+    var w = walkInfo(rs, name);
+    $('journeyInfo').textContent = logRoute === 'oneoff' ? 'A trip you don\'t make often. Only the walk to the station is counted.'
+      : (w.legs.length ? 'Walking each way (miles): ' + w.legs.join(', ') + '. ' + w.total + ' mi on a walked day.' : 'No walking counted.') +
+        (rs.tripWork === false ? ' Not a work day.' : '');
     $('oneOffBox').hidden = logRoute !== 'oneoff';
   }
 
@@ -814,6 +829,7 @@
     try { if (this.showPicker) this.showPicker(); } catch (e) {}
   });
   ['oneOffName', 'oneOffMiles'].forEach(function (id) { $(id).addEventListener('input', render); });
+  $('journeySel').addEventListener('change', function () { setRoute($('journeySel').value); });
 
   function fareFor(kind) {
     var s = routeNow();

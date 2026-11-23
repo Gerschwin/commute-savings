@@ -80,7 +80,10 @@
           <input type="date" id="logDate" required>
         </label>
       </div>
-      <div class="route-switch" id="routeSwitch" role="group" aria-label="Journey"></div>
+      <div class="journey">
+        <label class="field"><span>Journey</span><select id="journeySel" class="select"></select></label>
+        <p class="hint" id="journeyInfo"></p>
+      </div>
       <div class="one-off" id="oneOffBox" hidden>
         <label class="field"><span>Where (optional)</span><input type="text" id="oneOffName" maxlength="30" autocomplete="off" placeholder="e.g. Edinburgh"></label>
         <label class="field"><span>Miles driving, return</span><input type="text" id="oneOffMiles" inputmode="decimal" autocomplete="off" placeholder="e.g. 80"></label>
