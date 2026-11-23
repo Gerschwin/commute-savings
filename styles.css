@@ -417,3 +417,7 @@ input { font-size: 16px; }
   content: ""; display: inline-block; width: 6px; height: .8em; margin-right: 10px;
   background: var(--accent); border-radius: 3px; vertical-align: -.02em;
 }
+/* Heading and date share one line: the heading never wraps, it shrinks on narrow screens. */
+.card > .card-head h2 { white-space: nowrap; min-width: 0; font-size: clamp(1.3rem, 6.4vw, 1.75rem); }
+.card-head .date-field { flex: 0 1 auto; min-width: 0; }
+.card-head .date-field input { padding: 8px 8px; max-width: 100%; }
