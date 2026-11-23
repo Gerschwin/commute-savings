@@ -79,7 +79,7 @@
       <div class="fare-row">
         <label class="field fare-field">
           <span>Ticket cost today, both ways (£)</span>
-          <input type="text" id="dayFare" inputmode="decimal" autocomplete="off">
+          <input type="text" id="dayFare" data-money inputmode="decimal" autocomplete="off">
         </label>
         <div class="fare-chips" id="fareChips">
           <button type="button" class="chip" data-fare="return"><span id="chipReturnName">BB1 return</span> <b id="chipReturn">£5.45</b></button>
@@ -119,7 +119,7 @@
         </label>
         <label class="field amount">
           <span>£</span>
-          <input type="text" id="otherAmount" inputmode="decimal" autocomplete="off" placeholder="0.00">
+          <input type="text" id="otherAmount" data-money inputmode="decimal" autocomplete="off" placeholder="0.00">
         </label>
         <button type="submit" class="btn primary">Add</button>
         <p class="error" id="otherError" role="alert"></p>
@@ -166,7 +166,7 @@
           <em class="error" data-ferr="odo"></em>
         </div>
         <label class="field"><span>Litres</span><input name="litres" inputmode="decimal" autocomplete="off" placeholder="0.00"><em class="error" data-ferr="litres"></em></label>
-        <label class="field"><span>Paid (£)</span><input name="cost" inputmode="decimal" autocomplete="off" placeholder="0.00"><em class="error" data-ferr="cost"></em></label>
+        <label class="field"><span>Paid (£)</span><input name="cost" inputmode="decimal" data-money autocomplete="off" placeholder="0.00"><em class="error" data-ferr="cost"></em></label>
         <label class="check span2">
           <input type="checkbox" name="full" checked>
           <span>Filled to full</span>
@@ -253,14 +253,14 @@
       <p class="hint">Changes apply to new entries only. Days already logged keep the figures they were saved with. Petrol price and mpg here are only used until your fuel log has real figures (or if you switch that off).</p>
       <form id="settingsForm" novalidate>
         <div class="settings-grid">
-          <label class="field"><span>Petrol price (£ per litre)</span><input name="price" inputmode="decimal" autocomplete="off"><em class="error" data-err="price"></em></label>
+          <label class="field"><span>Petrol price (£ per litre)</span><input name="price" inputmode="decimal" data-money autocomplete="off"><em class="error" data-err="price"></em></label>
           <div class="field"><label for="setMpg">Van mpg (UK gallons)</label><input id="setMpg" name="mpg" inputmode="decimal" autocomplete="off"><em class="error" data-err="mpg"></em>
             <details class="helper"><summary>Dashboard shows km/L?</summary>
               <div class="helper-row"><input id="kmplIn" inputmode="decimal" aria-label="km per litre" placeholder="km/L"><button type="button" class="btn small" id="kmplUse">Use</button></div>
               <p class="hint" id="kmplOut"></p>
             </details></div>
           <label class="field"><span>Commute round trip (miles)</span><input name="commuteMiles" inputmode="decimal" autocomplete="off"><em class="error" data-err="commuteMiles"></em></label>
-          <div class="field"><label for="setFare">Full return fare (£)</label><input id="setFare" name="fare" inputmode="decimal" autocomplete="off"><em class="error" data-err="fare"></em>
+          <div class="field"><label for="setFare">Full return fare (£)</label><input id="setFare" name="fare" inputmode="decimal" data-money autocomplete="off"><em class="error" data-err="fare"></em>
             <details class="helper"><summary>Season ticket or Flexipass?</summary>
               <div class="helper-row"><input id="passPrice" inputmode="decimal" aria-label="Ticket price in pounds" placeholder="£ price"><input id="passDays" inputmode="numeric" aria-label="Days of travel it covers" placeholder="days"><button type="button" class="btn small" id="passUse">Use</button></div>
               <p class="hint" id="passOut">Enter what it cost and how many days you will actually travel on it.</p>
@@ -274,16 +274,16 @@
             </label>
             <div class="discount-grid">
               <label class="field span2"><span>Code</span><input name="discountCode" autocomplete="off" maxlength="20" placeholder="e.g. BB1"></label>
-              <label class="field"><span>Return (£)</span><input name="discountFare" inputmode="decimal" autocomplete="off"><em class="error" data-err="discountFare"></em></label>
-              <label class="field"><span>Single (£)</span><input name="discountSingle" inputmode="decimal" autocomplete="off"><em class="error" data-err="discountSingle"></em></label>
+              <label class="field"><span>Return (£)</span><input name="discountFare" inputmode="decimal" data-money autocomplete="off"><em class="error" data-err="discountFare"></em></label>
+              <label class="field"><span>Single (£)</span><input name="discountSingle" inputmode="decimal" data-money autocomplete="off"><em class="error" data-err="discountSingle"></em></label>
               <label class="field span2"><span>Code ends (leave blank if not known)</span><input type="date" name="discountEnds"></label>
             </div>
           </fieldset>
-          <label class="field"><span>Single fare, one way (£)</span><input name="single" inputmode="decimal" autocomplete="off"><em class="error" data-err="single"></em></label>
+          <label class="field"><span>Single fare, one way (£)</span><input name="single" inputmode="decimal" data-money autocomplete="off"><em class="error" data-err="single"></em></label>
           <label class="field"><span>Drive to station round trip (miles)</span><input name="stationMiles" inputmode="decimal" autocomplete="off"><em class="error" data-err="stationMiles"></em></label>
           <label class="field"><span>Mpg on short station runs</span><input name="stationMpg" inputmode="decimal" autocomplete="off"><em class="error" data-err="stationMpg"></em></label>
           <label class="field"><span>Van wear (pence per mile)</span><input name="wearPence" inputmode="decimal" autocomplete="off"><em class="error" data-err="wearPence"></em></label>
-          <label class="field"><span>Monthly target (£)</span><input name="target" inputmode="decimal" autocomplete="off"><em class="error" data-err="target"></em></label>
+          <label class="field"><span>Monthly target (£)</span><input name="target" inputmode="decimal" data-money autocomplete="off"><em class="error" data-err="target"></em></label>
         </div>
         <h3 class="settings-sub">Exercise</h3>
         <div class="settings-grid">

@@ -825,8 +825,23 @@
   /* ================= settings form ================= */
   var form = $('settingsForm');
 
+  /* £ boxes show two decimal places (petrol price keeps a third if it has one, e.g. 1.459). */
+  function moneyText(v) {
+    var n = parseFloat(String(v == null ? '' : v).replace(/[£,\s]/g, ''));
+    if (!isFinite(n)) return String(v == null ? '' : v);
+    var three = Math.round(n * 1000) / 1000;
+    return Math.abs(three * 100 - Math.round(three * 100)) > 1e-6 ? three.toFixed(3) : n.toFixed(2);
+  }
+  document.addEventListener('change', function (ev) {
+    var n = ev.target;
+    if (n && n.hasAttribute && n.hasAttribute('data-money') && n.value.trim() !== '') n.value = moneyText(n.value);
+  });
+
   function fillSettingsForm(s) {
-    C.FIELDS.forEach(function (k) { form.elements[k].value = String(s[k]); });
+    C.FIELDS.forEach(function (k) {
+      var n = form.elements[k];
+      n.value = n.hasAttribute('data-money') ? moneyText(s[k]) : String(s[k]);
+    });
     form.elements.includeWear.checked = !!s.includeWear;
     form.elements.discountOn.checked = !!s.discountOn;
     form.elements.discountCode.value = s.discountCode || '';
