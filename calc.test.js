@@ -476,6 +476,15 @@ test('a trip with no code fare never uses the code', () => {
   assert.strictEqual(C.entrySaving('train', C.effectiveSettings(r, null, null, '2026-11-23')).fuel, 9.78);
 });
 
+test('Milngavie walks: home to Airdrie station and 0.7 miles from Milngavie, both ways', () => {
+  const r = C.routeSettings(C.DEFAULTS, 'milngavie');
+  assert.deepStrictEqual(C.commuteExercise('walked', r).map(p => p.miles), [4.6]);
+  assert.deepStrictEqual(C.commuteExercise('cycled', r).map(p => [p.kind, p.miles]), [['cycle', 3.2], ['walk', 1.4]]);
+  // saved before walks existed
+  const old = C.validateSettings(Object.assign({}, C.DEFAULTS, { trips: [{ id: 'milngavie', name: 'Milngavie', miles: 46.2, fare: 7.6, codeFare: 6.8, work: true }] }));
+  assert.strictEqual(old.settings.trips[0].walk, 0.7);
+});
+
 test('recalc keeps a trip day on its own miles', () => {
   const e = { id: 'r', date: '2026-11-23', type: 'train', fuel: 8.38, fare: 6.8, mpg: 22, price: 1.59, route: 'Milngavie', miles: 46.2 };
   const ch = C.recalcFromSettings([e], C.DEFAULTS, Object.assign({}, C.DEFAULTS, { mpg: 25 }));

@@ -1121,6 +1121,7 @@
       };
       field(' span2', 'Name', 'name', t.name || '', { maxlength: '30', placeholder: 'e.g. Edinburgh' });
       field(' span2', 'Driving it, round trip (miles)', 'miles', t.miles ? String(t.miles) : '', { inputmode: 'decimal' });
+      field(' span2', 'Walk from the far station, each way (miles)', 'walk', t.walk ? String(t.walk) : '', { inputmode: 'decimal', placeholder: 'none' });
       TRIP_MONEY.forEach(function (m) { field('', m[1], m[0], t[m[0]] ? moneyText(t[m[0]]) : '', { inputmode: 'decimal', 'data-money': '', placeholder: m[2] }); });
       row.appendChild(grid);
       var cb = el('input', { type: 'checkbox', name: p + 'work', role: 'switch' });
@@ -1140,7 +1141,7 @@
   function readTripRows() {
     return Array.prototype.map.call($('tripsList').querySelectorAll('.trip-row'), function (row, i) {
       var p = 'trips.' + i + '.', g = function (k) { return form.elements[p + k]; };
-      var t = { id: row.getAttribute('data-id') || uid(), name: g('name').value, miles: g('miles').value, work: g('work').checked };
+      var t = { id: row.getAttribute('data-id') || uid(), name: g('name').value, miles: g('miles').value, walk: g('walk').value, work: g('work').checked };
       TRIP_MONEY.forEach(function (m) { t[m[0]] = g(m[0]).value; });
       return t;
     });
@@ -1148,7 +1149,7 @@
   $('addTrip').addEventListener('click', function () {
     var rows = readTripRows();
     if (rows.length >= 12) { toast('Up to 12 saved trips.'); return; }
-    rows.push({ id: uid(), name: '', miles: '', fare: '', codeFare: '', single: '', codeSingle: '', work: false });
+    rows.push({ id: uid(), name: '', miles: '', walk: '', fare: '', codeFare: '', single: '', codeSingle: '', work: false });
     renderTripRows(rows);
     form.elements['trips.' + (rows.length - 1) + '.name'].focus();
   });

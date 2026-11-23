@@ -74,10 +74,14 @@ day you log.
 * **Work day** on a trip means it's a commute with a detour, like Milngavie
   (home to work 17 miles, work to Milngavie 8.6, then home 20.6, 46.2 in all;
   return £6.80 with BB1 or £7.60, singles £6.55 or £7.30). It counts as a
-  train day and walks the station to work leg.
+  train day.
+* **Walk from the far station, each way**: the walking at the other end.
+  Milngavie is 0.7 miles, so a walked Milngavie day is 1.6 + 0.7 each way,
+  4.6 miles. Left blank, a work day walks your usual station to work leg and
+  other trips walk nothing at that end. The home to station leg is always
+  included (cycled on a cycled day).
 * A trip that isn't a work day (Edinburgh, the airport, a Saturday in town)
-  doesn't count as a train day, has no No commute button, and only walks the
-  home to station leg. Its savings are shown separately under Running totals
+  doesn't count as a train day and has no No commute button. Its savings are shown separately under Running totals
   ("Includes £X from trips this pay month") and are part of every total.
 * **One-off**: type where (optional) and the miles driving, then what the
   ticket cost in the ticket box. The buttons show the saving once both are in.

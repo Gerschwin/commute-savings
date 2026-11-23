@@ -32,10 +32,12 @@
     payWeekend: true,     // payday on a weekend moves to the Friday before
     // Saved trips, picked per day in Log a day. miles = driving it, round trip.
     // fare/single = full fares; codeFare/codeSingle = with the discount code (0 = no code fare).
-    // work = a work day (counts as a commute day and walks the station to work leg).
+    // walk = miles walked each way from the far station (blank: a work day walks the usual station to work leg, others none).
+    // work = a work day (counts as a commute day).
     trips: [
       // Home to work 17, work to Milngavie 8.6, Milngavie to home 20.6. Fares Nov 2026.
-      { id: 'milngavie', name: 'Milngavie', miles: 46.2, fare: 7.6, codeFare: 6.8, single: 7.3, codeSingle: 6.55, work: true }
+      // Walks: home to Airdrie station, and 0.7 miles each way from Milngavie station.
+      { id: 'milngavie', name: 'Milngavie', miles: 46.2, fare: 7.6, codeFare: 6.8, single: 7.3, codeSingle: 6.55, walk: 0.7, work: true }
     ],
     homeLeg: 1.6,       // home to your station, each way (miles)
     workLeg: 0.8,       // Glasgow station to work, each way (miles); 0 if none
@@ -369,7 +371,7 @@
     };
     if (code) { o.discountFare = code; o.discountSingle = trip.codeSingle > 0 ? trip.codeSingle : code / 2; }
     else o.discountOn = false;
-    if (!trip.work) o.workLeg = 0;
+    o.workLeg = trip.walk > 0 ? Number(trip.walk) : trip.work ? settings.workLeg : 0;
     return Object.assign({}, settings, o);
   }
 
@@ -698,6 +700,8 @@
       var out = {
         id: String(t.id || ('t' + Date.now().toString(36) + i)).slice(0, 40),
         name: String(t.name || '').trim().slice(0, 30) || 'Trip',
+        // Milngavie saved before walks existed gets its 0.7 mile walk.
+        walk: t.walk == null && t.id === 'milngavie' ? 0.7 : num('walk'),
         miles: num('miles'), fare: num('fare'), codeFare: num('codeFare'), single: num('single'), codeSingle: num('codeSingle'),
         work: !!t.work
       };
