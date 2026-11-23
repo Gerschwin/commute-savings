@@ -476,10 +476,11 @@ test('a trip with no code fare never uses the code', () => {
   assert.strictEqual(C.entrySaving('train', C.effectiveSettings(r, null, null, '2026-11-23')).fuel, 9.78);
 });
 
-test('Milngavie walks: home to Airdrie station and 0.7 miles from Milngavie, both ways', () => {
+test('Milngavie walks: Airdrie station, Queen Street to work, and 0.7 miles from Milngavie, both ways', () => {
   const r = C.routeSettings(C.DEFAULTS, 'milngavie');
-  assert.deepStrictEqual(C.commuteExercise('walked', r).map(p => p.miles), [4.6]);
-  assert.deepStrictEqual(C.commuteExercise('cycled', r).map(p => [p.kind, p.miles]), [['cycle', 3.2], ['walk', 1.4]]);
+  assert.deepStrictEqual(C.commuteExercise('walked', r).map(p => p.miles), [6.2]);
+  assert.deepStrictEqual(C.commuteExercise('cycled', r).map(p => [p.kind, p.miles]), [['cycle', 3.2], ['walk', 3]]);
+  assert.deepStrictEqual(C.commuteExercise('station', r).map(p => p.miles), [3]);
   // saved before walks existed
   const old = C.validateSettings(Object.assign({}, C.DEFAULTS, { trips: [{ id: 'milngavie', name: 'Milngavie', miles: 46.2, fare: 7.6, codeFare: 6.8, work: true }] }));
   assert.strictEqual(old.settings.trips[0].walk, 0.7);

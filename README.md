@@ -75,11 +75,11 @@ day you log.
   (home to work 17 miles, work to Milngavie 8.6, then home 20.6, 46.2 in all;
   return £6.80 with BB1 or £7.60, singles £6.55 or £7.30). It counts as a
   train day.
-* **Walk from the far station, each way**: the walking at the other end.
-  Milngavie is 0.7 miles, so a walked Milngavie day is 1.6 + 0.7 each way,
-  4.6 miles. Left blank, a work day walks your usual station to work leg and
-  other trips walk nothing at that end. The home to station leg is always
-  included (cycled on a cycled day).
+* **Extra walk from the far station, each way**: the walking at the other
+  end. A work day also walks your usual Queen Street to work leg. Milngavie
+  is a work day with 0.7 miles, so a walked Milngavie day is home to Airdrie
+  1.6, Queen Street to work 0.8 and Milngavie 0.7, each way: 6.2 miles. The
+  home to station leg is always included (cycled on a cycled day).
 * A trip that isn't a work day (Edinburgh, the airport, a Saturday in town)
   doesn't count as a train day and has no No commute button. Its savings are shown separately under Running totals
   ("Includes £X from trips this pay month") and are part of every total.

@@ -1121,12 +1121,12 @@
       };
       field(' span2', 'Name', 'name', t.name || '', { maxlength: '30', placeholder: 'e.g. Edinburgh' });
       field(' span2', 'Driving it, round trip (miles)', 'miles', t.miles ? String(t.miles) : '', { inputmode: 'decimal' });
-      field(' span2', 'Walk from the far station, each way (miles)', 'walk', t.walk ? String(t.walk) : '', { inputmode: 'decimal', placeholder: 'none' });
+      field(' span2', 'Extra walk from the far station, each way (miles)', 'walk', t.walk ? String(t.walk) : '', { inputmode: 'decimal', placeholder: 'none' });
       TRIP_MONEY.forEach(function (m) { field('', m[1], m[0], t[m[0]] ? moneyText(t[m[0]]) : '', { inputmode: 'decimal', 'data-money': '', placeholder: m[2] }); });
       row.appendChild(grid);
       var cb = el('input', { type: 'checkbox', name: p + 'work', role: 'switch' });
       cb.checked = !!t.work;
-      row.appendChild(el('label', { class: 'toggle' }, [cb, el('span', { class: 'toggle-track', 'aria-hidden': 'true' }), el('span', { text: 'Work day (counts as a commute day)' })]));
+      row.appendChild(el('label', { class: 'toggle' }, [cb, el('span', { class: 'toggle-track', 'aria-hidden': 'true' }), el('span', { text: 'Work day (counts as a commute, walks to work too)' })]));
       var del = el('button', { type: 'button', class: 'btn ghost small trip-del', text: 'Remove ' + (t.name || 'trip') });
       del.addEventListener('click', function () {
         var rows = readTripRows();
