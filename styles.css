@@ -444,3 +444,6 @@ input { font-size: 16px; }
 .fare-chips .chip[hidden] { display: none; }
 /* Top buttons: same rounded corners as the other buttons. */
 .icon-btn { border-radius: 12px; }
+/* Work / Milngavie switch: same 12px corners outside, inner pills inset to match. */
+.route-switch { border-radius: 12px; }
+.route-opt { border-radius: 8px; }
