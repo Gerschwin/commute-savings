@@ -147,7 +147,9 @@
     if (!f || !C.isISODate(f.date)) return null;
     var odo = Number(f.odo), litres = Number(f.litres), cost = Number(f.cost);
     if (!(odo > 0) || !(litres > 0) || !(cost > 0)) return null;
-    return { id: String(f.id || uid()), date: f.date, ts: Number(f.ts) || Date.now(), odo: odo, litres: litres, cost: cost, full: !!f.full };
+    var out = { id: String(f.id || uid()), date: f.date, ts: Number(f.ts) || Date.now(), odo: odo, litres: litres, cost: cost, full: !!f.full };
+    if (Number(f.ppl) > 0) out.ppl = Number(f.ppl);
+    return out;
   }
 
   /* Exercise records. Commute walks/rides live on the train entry (entry.ex)
@@ -451,7 +453,7 @@
     var basis = where + 'Ticket ' + C.money(eff.fare) + (eff.fareCode ? ' with ' + eff.fareCode : '') + '. ';
     if (usual.expired) basis = where + 'Code ' + (s.discountCode || '') + ' ended ' + C.shortDate(s.discountEnds) + ', so the full fare is used. ';
     $('basis').textContent = basis + 'Working out with ' + eff.mpg.toFixed(1) + ' mpg' + (eff.source.mpg === 'fills' ? ' (real)' : '') +
-      ' and petrol at ' + (eff.price * 100).toFixed(1) + 'p a litre' + (eff.source.price === 'fills' ? ' (last fill)' : '') + '.';
+      ' and petrol at ' + (eff.price * 100).toFixed(1) + 'p a litre' + (eff.source.price === 'fills' ? ' (from your fill-up)' : '') + '.';
     $('dayFare').placeholder = oneOff ? 'What the ticket cost' : usual.fare.toFixed(2);
     if (missing) $('basis').textContent = missing + ' Working out with ' + eff.mpg.toFixed(1) + ' mpg and petrol at ' + (eff.price * 100).toFixed(1) + 'p a litre.';
     $('chipReturnName').textContent = usual.code ? usual.code + ' return' : 'Day return';
@@ -643,7 +645,7 @@
       list.appendChild(el('li', null, [
         el('div', null, [
           el('span', { class: 'when', text: C.shortDate(f.date) + ' · ' + Math.round(f.odo).toLocaleString('en-GB') + unit }),
-          el('span', { class: 'what', text: f.litres.toFixed(2) + ' L at ' + (f.cost / f.litres * 100).toFixed(1) + 'p' + (f.full ? '' : ' (top-up)') })
+          el('span', { class: 'what', text: f.litres.toFixed(2) + ' L at ' + (C.fillPrice(f) * 100).toFixed(1) + 'p' + (f.full ? '' : ' (top-up)') })
         ]),
         el('span', { class: 'amt plain', text: C.money(f.cost) }),
         del
@@ -660,6 +662,12 @@
     if (!silent) {
       var st = state.stats;
       var msg = 'Fill-up added' + (st.mpg ? ' · ' + st.mpg.toFixed(1) + ' mpg' : '');
+      // Days around this fill-up may now have a different petrol price: offer the update straight away.
+      if (C.recalcEntries(state.entries, state.fills, state.settings).length) {
+        $('recalcBtn').click();
+        $('recalcBox').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        msg += ' · past days can be updated';
+      }
       toast(msg, function () { removeFill(fill.id, true); toast('Removed'); });
     }
   }
@@ -772,14 +780,21 @@
   function fillRaw() {
     return {
       date: fillForm.elements.date.value, odo: fillForm.elements.odo.value,
-      litres: fillForm.elements.litres.value, cost: fillForm.elements.cost.value, full: fillForm.elements.full.checked
+      litres: fillForm.elements.litres.value, ppl: fillForm.elements.ppl.value, cost: fillForm.elements.cost.value, full: fillForm.elements.full.checked
     };
   }
   fillForm.addEventListener('input', function () {
     var r = C.validateFill(fillRaw());
     var p = $('fillPreview');
     p.textContent = '';
-    if (!r.errors.litres && !r.errors.cost) p.textContent = (r.fill.cost / r.fill.litres * 100).toFixed(1) + 'p a litre.';
+    var raw = fillRaw();
+    if (!r.errors.litres && !r.errors.cost && !r.errors.ppl) {
+      var bits = [];
+      if (!String(raw.cost).trim()) bits.push('Paid ' + C.money(r.fill.cost) + '.');
+      else if (!String(raw.litres).trim()) bits.push(r.fill.litres.toFixed(2) + ' litres.');
+      if (!String(raw.ppl).trim()) bits.push((r.fill.cost / r.fill.litres * 100).toFixed(1) + 'p a litre.');
+      p.textContent = bits.join(' ');
+    }
     var last = state.fills[0];
     if (!r.errors.odo && last && r.fill.odo > last.odo) {
       var unit = state.settings.odoUnit === 'km' ? ' km' : ' miles';
@@ -803,7 +818,7 @@
     if (last && r.fill.odo < last.odo && r.fill.date > last.date &&
         !confirm('That reading is lower than your last fill (' + Math.round(last.odo) + '). Add it anyway?')) return;
     addFill(Object.assign({ id: uid(), ts: Date.now() }, r.fill));
-    ['odo', 'litres', 'cost'].forEach(function (k) { fillForm.elements[k].value = ''; });
+    ['odo', 'litres', 'ppl', 'cost'].forEach(function (k) { fillForm.elements[k].value = ''; });
     fillForm.elements.full.checked = true;
     $('fillPreview').textContent = '';
   });

@@ -112,10 +112,17 @@ and it works out a per-day cost.
 
 ### Fuel log (real mpg and petrol price)
 
-Each time you fill up, add the date, odometer reading, litres and what you
-paid. Tick **Filled to full** if you brimmed it.
+Each time you fill up, add the date, odometer reading, and any two of
+**litres**, **price a litre** (pence, from the pump) and **paid**: the third is
+worked out. Tick **Filled to full** if you brimmed it.
 
-* **Petrol price** comes from your latest fill (paid ÷ litres).
+* **Petrol price** is kept for each fill-up. Every day uses the price of the
+  fill-up in the tank that day (the last one on or before it), so a back-filled
+  day gets the price of the time, not today's.
+* After you add a fill-up, if any past days were worked out at a different
+  price, the **Recalculate past days** box opens straight away with the effect
+  shown, for you to **Update** (with Undo) or cancel. One fill-up is enough for
+  this; days keep their own mpg until you have two full tanks.
 * **Real mpg** uses the full-to-full method: the miles between two full tanks,
   divided by all the fuel you put in since the first of them (top-ups
   included). It averages your last five tanks, so one odd week doesn't swing
@@ -129,7 +136,7 @@ paid. Tick **Filled to full** if you brimmed it.
 ### Recalculate past days
 
 Days you logged before the fuel log had real figures were worked out with the
-Settings guesses. Once real mpg appears, a **Recalculate past days with real
+Settings guesses. Once a fill-up is logged, a **Recalculate past days with real
 figures** button shows in the Fuel log card (only when something would
 change). Tap it to see the effect first, for example "this month: £79.20
 becomes £71.65", then **Update** to apply it, with a 6 second Undo.

@@ -300,9 +300,36 @@ test('recalculating past days uses the tank and price of the time', () => {
   assert.strictEqual(by.d.fuel, 5.36);
 });
 
-test('no recalculation until there is a real mpg', () => {
-  const one = [{ date: '2026-11-01', odo: 10000, litres: 50, cost: 79.5, full: true }];
-  assert.deepStrictEqual(C.recalcEntries([{ id: 'a', date: '2026-11-03', type: 'train', fuel: 5.67 }], one, C.DEFAULTS), []);
+test('one fill-up is enough to reprice past days, keeping their own mpg', () => {
+  const one = [{ date: '2026-11-01', odo: 10000, litres: 50, cost: 72.5, ppl: 145, full: true }];
+  const e = { id: 'a', date: '2026-11-03', type: 'train', fuel: 5.72, fare: 5.45, mpg: 22, price: 1.59 };
+  const ch = C.recalcEntries([e], one, C.DEFAULTS);
+  // 34 mi at 22 mpg and £1.45 = £10.19, less £5.45
+  assert.deepStrictEqual([ch[0].mpg, ch[0].price, ch[0].fuel], [22, 1.45, 4.74]);
+});
+
+test('each day uses the price of the fill-up in the tank that day', () => {
+  const fills = [
+    { date: '2026-11-01', odo: 10000, litres: 50, cost: 72.5, full: true },   // 145p
+    { date: '2026-11-15', odo: 10400, litres: 40, cost: 60, ppl: 150, full: true }
+  ];
+  const st = C.fillStats(fills, 'mi');
+  const s = Object.assign({}, C.DEFAULTS, { useFills: true });
+  assert.strictEqual(C.effectiveSettings(s, st, null, '2026-11-10').price, 1.45);
+  assert.strictEqual(C.effectiveSettings(s, st, null, '2026-11-20').price, 1.5);
+  assert.strictEqual(st.price, 1.5);
+});
+
+test('fill-up: any two of litres, pence a litre and paid', () => {
+  const base = { date: '2026-11-20', odo: 1000, full: true };
+  let r = C.validateFill(Object.assign({}, base, { litres: '40', ppl: '145.9', cost: '' }));
+  assert.ok(r.ok); assert.strictEqual(r.fill.cost, 58.36); assert.strictEqual(r.fill.ppl, 145.9);
+  r = C.validateFill(Object.assign({}, base, { litres: '', ppl: '145.9', cost: '58.36' }));
+  assert.ok(r.ok); assert.strictEqual(r.fill.litres, 40);
+  r = C.validateFill(Object.assign({}, base, { litres: '40', ppl: '1.459', cost: '' }));
+  assert.strictEqual(r.fill.ppl, 145.9);
+  assert.strictEqual(C.fillPrice(r.fill), 1.459);
+  assert.ok(!C.validateFill(Object.assign({}, base, { litres: '40', ppl: '9', cost: '' })).ok);
 });
 
 test('changing Settings mpg reworks only days that used the Settings figure', () => {

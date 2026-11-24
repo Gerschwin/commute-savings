@@ -298,6 +298,25 @@
      Real mpg uses the full-to-full method: miles between two full tanks
      divided by all the fuel added after the first one, up to and including the second.
      Averages the most recent `window` intervals (default 5), weighted by fuel. */
+  /* Petrol price (£ a litre) of a fill-up: the pump price if typed, else paid ÷ litres. */
+  function fillPrice(f) {
+    return f.ppl > 0 ? f.ppl / 100 : f.cost / f.litres;
+  }
+
+  /* Fill-ups with a price, oldest first. */
+  function priceFills(fills) {
+    return fills.filter(function (f) { return f.litres > 0 && (f.cost > 0 || f.ppl > 0) && isISODate(f.date); })
+      .slice().sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : (a.ts || 0) - (b.ts || 0); });
+  }
+
+  /* The price on a date: the last fill-up on or before it, else the earliest one. */
+  function priceOn(byDate, dateISO) {
+    if (!byDate.length) return null;
+    var fill = byDate[0];
+    byDate.forEach(function (f) { if (!dateISO || f.date <= dateISO) fill = f; });
+    return fillPrice(fill);
+  }
+
   function fillStats(fills, odoUnit, window) {
     window = window || 5;
     var toMiles = odoUnit === 'km' ? 1 / KM_PER_MILE : 1;
@@ -319,16 +338,16 @@
     var recent = intervals.slice(-window);
     var miles = 0, litres = 0;
     recent.forEach(function (iv) { miles += iv.miles; litres += iv.litres; });
-    var byDate = fills.slice().filter(function (f) { return f.litres > 0 && f.cost > 0; })
-      .sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (b.ts || 0) - (a.ts || 0); });
-    var latest = byDate[0];
+    var byDate = priceFills(fills);
+    var latest = byDate[byDate.length - 1];
     return {
       intervals: intervals,
       used: recent.length,
       mpg: litres > 0 ? miles / (litres / LITRES_PER_GALLON) : null,
       lastMpg: intervals.length ? intervals[intervals.length - 1].mpg : null,
-      price: latest ? latest.cost / latest.litres : null,
-      priceDate: latest ? latest.date : null
+      price: latest ? fillPrice(latest) : null,
+      priceDate: latest ? latest.date : null,
+      priceFills: byDate
     };
   }
 
@@ -339,7 +358,9 @@
     var src = { mpg: 'settings', price: 'settings' };
     if (settings.useFills && stats) {
       if (stats.mpg) { s.mpg = stats.mpg; src.mpg = 'fills'; }
-      if (stats.price) { s.price = stats.price; src.price = 'fills'; }
+      // The price of the fill-up in the tank on that day, not just the latest.
+      var p = stats.priceFills ? priceOn(stats.priceFills, dateISO) : stats.price;
+      if (p) { s.price = p; src.price = 'fills'; }
     }
     var usual = usualFare(settings, dateISO);
     s.fullFare = settings.fare;
@@ -394,21 +415,18 @@
      Returns only the entries that change by at least 1p. */
   function recalcEntries(entries, fills, settings) {
     var stats = fillStats(fills, settings.odoUnit);
-    if (!stats.mpg) return [];
-    var byDate = fills.filter(function (f) { return f.litres > 0 && f.cost > 0 && isISODate(f.date); })
-      .slice().sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : (a.ts || 0) - (b.ts || 0); });
+    var byDate = priceFills(fills);
     if (!byDate.length) return [];
     var changes = [];
     entries.forEach(function (e) {
       if (e.type !== 'train' && e.type !== 'station' && e.type !== 'lift') return;
-      var mpg = stats.mpg;
+      // Without two full tanks yet there's no real mpg: keep the day's own (or Settings).
+      var mpg = stats.mpg || (e.mpg > 0 ? e.mpg : settings.mpg);
       for (var i = 0; i < stats.intervals.length; i++) {
         var iv = stats.intervals[i];
         if (iv.from <= e.date && e.date < iv.to) { mpg = iv.mpg; break; }
       }
-      var fill = byDate[0];
-      byDate.forEach(function (f) { if (f.date <= e.date) fill = f; });
-      var price = fill.cost / fill.litres;
+      var price = priceOn(byDate, e.date);
       var fare = e.type === 'lift' ? 0 : e.fare != null && isFinite(e.fare) ? e.fare : usualFare(settings, e.date).fare;
       var s = Object.assign({}, settings, { mpg: mpg, price: price, fare: fare }, e.miles > 0 ? { commuteMiles: e.miles } : {});
       var fuel = round2(trainSaving(e.type, s).fuel);
@@ -452,13 +470,22 @@
     var errors = {};
     var num = function (v) { return parseFloat(String(v == null ? '' : v).replace(/[£,\s]/g, '')); };
     var f = { date: raw.date, odo: num(raw.odo), litres: num(raw.litres), cost: num(raw.cost), full: !!raw.full };
+    // Price per litre in pence, from the pump. Any two of litres, price and paid give the third.
+    var ppl = num(raw.ppl);
+    if (ppl > 0 && ppl < 5) ppl = ppl * 100;   // typed in pounds, e.g. 1.459
+    if (ppl > 0) {
+      if (!(f.cost > 0) && f.litres > 0) f.cost = Math.round(f.litres * ppl) / 100;
+      else if (!(f.litres > 0) && f.cost > 0) f.litres = Math.round(f.cost / ppl * 10000) / 100;
+      f.ppl = Math.round(ppl * 10) / 10;
+    }
     if (!isISODate(f.date)) errors.date = 'Pick a date';
     if (!isFinite(f.odo) || f.odo <= 0) errors.odo = 'Enter the odometer reading';
     if (!isFinite(f.litres) || f.litres <= 0 || f.litres > 200) errors.litres = 'Enter litres added';
     if (!isFinite(f.cost) || f.cost <= 0) errors.cost = 'Enter what you paid';
-    if (!errors.litres && !errors.cost) {
-      var ppl = f.cost / f.litres;
-      if (ppl < 0.5 || ppl > 4) errors.cost = 'That is ' + money(ppl) + ' a litre, check the figures';
+    if (ppl > 0 && (ppl < 50 || ppl > 400)) errors.ppl = 'Enter the pence a litre, e.g. 145.9';
+    else if (!errors.litres && !errors.cost) {
+      var per = f.ppl > 0 ? f.ppl / 100 : f.cost / f.litres;
+      if (per < 0.5 || per > 4) errors.cost = 'That is ' + money(f.cost / f.litres) + ' a litre, check the figures';
     }
     return { ok: Object.keys(errors).length === 0, errors: errors, fill: f };
   }
@@ -750,6 +777,7 @@
     validateSettings: validateSettings,
     kmplToMpg: kmplToMpg,
     fillStats: fillStats,
+    fillPrice: fillPrice,
     effectiveSettings: effectiveSettings,
     validateFill: validateFill,
     recalcFromSettings: recalcFromSettings,
