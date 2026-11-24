@@ -308,6 +308,7 @@ input { font-size: 16px; }
 .check { display: flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 600; cursor: pointer; }
 .check input { width: 22px; height: 22px; accent-color: var(--accent); }
 .fill-form .hint { margin: 0; }
+.fill-form input.auto { color: var(--accent-text); font-style: italic; }
 .fills { margin-top: 12px; }
 .sub { display: block; font-size: .82rem; color: var(--muted); }
 

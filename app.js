@@ -783,7 +783,30 @@
       litres: fillForm.elements.litres.value, ppl: fillForm.elements.ppl.value, cost: fillForm.elements.cost.value, full: fillForm.elements.full.checked
     };
   }
-  fillForm.addEventListener('input', function () {
+  /* Litres, price a litre and paid: once two are typed, the third fills in
+     (marked .auto). Typing in a filled box makes it yours again. */
+  var FILL_TRIO = ['litres', 'ppl', 'cost'];
+  function trioNum(v) { var n = parseFloat(String(v).replace(/[£,\s]/g, '')); return n > 0 ? n : 0; }
+  function autoFillTrio(target) {
+    var el = fillForm.elements;
+    if (target && FILL_TRIO.indexOf(target.name) >= 0) target.classList.remove('auto');
+    var typed = FILL_TRIO.filter(function (k) { return el[k].value.trim() !== '' && !el[k].classList.contains('auto'); });
+    var open = FILL_TRIO.filter(function (k) { return typed.indexOf(k) < 0; });
+    if (open.length !== 1) {
+      open.forEach(function (k) { if (el[k].classList.contains('auto')) { el[k].value = ''; el[k].classList.remove('auto'); } });
+      return;
+    }
+    var L = trioNum(el.litres.value), P = trioNum(el.ppl.value), Q = trioNum(el.cost.value);
+    if (P > 0 && P < 5) P = P * 100;
+    var k = open[0], v = '';
+    if (k === 'cost' && L && P) v = (Math.round(L * P) / 100).toFixed(2);
+    else if (k === 'litres' && Q && P) v = (Math.round(Q / P * 10000) / 100).toFixed(2);
+    else if (k === 'ppl' && L && Q) v = (Math.round(Q / L * 1000) / 10).toFixed(1);
+    el[k].value = v;
+    el[k].classList.toggle('auto', v !== '');
+  }
+  fillForm.addEventListener('input', function (ev) {
+    autoFillTrio(ev.target);
     var r = C.validateFill(fillRaw());
     var p = $('fillPreview');
     p.textContent = '';
@@ -818,7 +841,7 @@
     if (last && r.fill.odo < last.odo && r.fill.date > last.date &&
         !confirm('That reading is lower than your last fill (' + Math.round(last.odo) + '). Add it anyway?')) return;
     addFill(Object.assign({ id: uid(), ts: Date.now() }, r.fill));
-    ['odo', 'litres', 'ppl', 'cost'].forEach(function (k) { fillForm.elements[k].value = ''; });
+    ['odo', 'litres', 'ppl', 'cost'].forEach(function (k) { fillForm.elements[k].value = ''; fillForm.elements[k].classList.remove('auto'); });
     fillForm.elements.full.checked = true;
     $('fillPreview').textContent = '';
   });

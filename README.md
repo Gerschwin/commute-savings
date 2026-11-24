@@ -113,8 +113,8 @@ and it works out a per-day cost.
 ### Fuel log (real mpg and petrol price)
 
 Each time you fill up, add the date, odometer reading, and any two of
-**litres**, **price a litre** (pence, from the pump) and **paid**: the third is
-worked out. Tick **Filled to full** if you brimmed it.
+**litres**, **price a litre** (pence, from the pump) and **paid**: the third fills
+in as you type (in orange). Tick **Filled to full** if you brimmed it.
 
 * **Petrol price** is kept for each fill-up. Every day uses the price of the
   fill-up in the tank that day (the last one on or before it), so a back-filled
