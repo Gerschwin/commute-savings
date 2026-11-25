@@ -144,7 +144,7 @@ becomes £71.65", then **Update** to apply it, with a 6 second Undo.
 Each train day gets the mpg of the tank you were on that day (filled on or
 before it, measured at the next full fill), or your average if no tank covers
 it, and the petrol price from the fill-up on or before that day. The fare
-you paid is kept. Other savings and exercise aren't touched. Nothing changes
+you paid is kept. Exercise isn't touched. Nothing changes
 unless you press the button.
 
 ### Changing mpg or petrol price in Settings
@@ -398,7 +398,6 @@ a few weeks. Taking a backup now and then is a good habit.
   fare. Doesn't count as a train day.
 * **No commute**: for holidays, sick days or working from home. Saves
   nothing, but like a weekend it never breaks your exercise streak.
-* **Other saving**: type what it was and the amount, then **Add**.
 * **Undo**: every add or delete shows a message with **Undo** for 6 seconds.
 * **Dark mode**: the round button next to Settings switches between Match
   phone (half circle), Dark (moon) and Light (sun). It's remembered on that

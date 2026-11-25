@@ -1365,29 +1365,6 @@
     b.addEventListener('click', function () { logTrain(b.dataset.mode, b.dataset.label); });
   });
 
-  document.querySelectorAll('#chips .chip').forEach(function (c) {
-    c.addEventListener('click', function () {
-      $('otherLabel').value = c.dataset.label;
-      $('otherAmount').value = Number(c.dataset.amount).toFixed(2);
-      $('otherError').textContent = '';
-      $('otherAmount').focus();
-    });
-  });
-
-  $('otherForm').addEventListener('submit', function (ev) {
-    ev.preventDefault();
-    var label = $('otherLabel').value.trim();
-    var amount = parseAmount($('otherAmount').value);
-    var err = '';
-    if (!label) err = 'Say what the saving was.';
-    else if (!(amount > 0)) err = 'Enter an amount above £0.';
-    $('otherError').textContent = err;
-    if (err) return;
-    addEntry({ id: uid(), date: selectedDate(), ts: Date.now(), type: 'custom', label: label, fuel: amount, wear: 0 });
-    $('otherLabel').value = '';
-    $('otherAmount').value = '';
-  });
-
   $('showMore').addEventListener('click', function () {
     state.listLimit += 50;
     renderList();

@@ -176,8 +176,6 @@ input { font-size: 16px; }
 .chip b { color: var(--accent-text); font-weight: 700; margin-left: 4px; }
 .chip:active { background: var(--accent-soft); }
 
-.other-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
-.other-form .error { flex-basis: 100%; }
 .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .field > span { font-size: .85rem; font-weight: 600; color: var(--muted); }
 .field input {
@@ -188,7 +186,6 @@ input { font-size: 16px; }
 .field input[aria-invalid="true"] { border-color: var(--danger); }
 .field.grow { flex: 1 1 100%; }
 .field.amount { flex: 1 1 100px; }
-.other-form .btn { flex: 0 0 auto; min-width: 96px; }
 @media (min-width: 480px) { .field.grow { flex-basis: 220px; } .field.amount { flex: 0 0 110px; } }
 
 /* ---------- buttons ---------- */
