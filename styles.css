@@ -493,3 +493,13 @@ input { font-size: 16px; }
 .journey-sub { margin: 14px 0 6px; font-size: .95rem; font-weight: 700; }
 .trips-set .journey-sub:first-of-type { margin-top: 4px; }
 .trips-set > .hint { margin: 6px 0 0; }
+
+/* Weekly backup reminder */
+.backup-bar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px;
+  margin: 0 0 14px; padding: 12px 14px; border-radius: 16px;
+  background: var(--accent-soft); color: var(--text);
+}
+.backup-bar[hidden] { display: none; }
+.backup-bar p { margin: 0; font-weight: 600; flex: 1 1 12em; }
+.backup-actions { display: flex; gap: 8px; }

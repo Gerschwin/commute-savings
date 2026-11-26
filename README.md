@@ -398,6 +398,15 @@ Google needs an app ID for the sign in. It's free and takes about 10 minutes.
 When you first sign in, Google says the app isn't verified (it's your own,
 in testing). Tap **Continue**.
 
+## Weekly backup reminder
+
+A phone won't let a web app save a file without a tap, so instead, when you
+open the app and your last backup is 7 or more days old (or you've never made
+one), a bar at the top asks for one: **Back up now** opens the share menu so
+the file can go straight to Google Drive, email and so on (on a computer it
+just downloads). **Later** hides it until tomorrow. **Backup (JSON)** in Your
+data counts too. With Drive sync on, the bar never shows.
+
 ## Moving your data between devices
 
 With sync on you don't need this. Without it:

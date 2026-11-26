@@ -1483,9 +1483,61 @@
     });
   });
 
+  function backupData() {
+    return { app: 'commute-savings', version: 1, exported: new Date().toISOString(), settings: state.settings, entries: state.entries, fills: state.fills, exercise: state.exercise };
+  }
+  function backupName() { return 'commute-savings-backup-' + todayISO() + '.json'; }
+  function markBackedUp() {
+    try { localStorage.setItem('cs.lastBackup', todayISO()); } catch (e) { /* private mode */ }
+    checkBackupDue();
+  }
   $('backupJson').addEventListener('click', function () {
-    var data = { app: 'commute-savings', version: 1, exported: new Date().toISOString(), settings: state.settings, entries: state.entries, fills: state.fills, exercise: state.exercise };
-    download('commute-savings-backup-' + todayISO() + '.json', JSON.stringify(data, null, 2), 'application/json');
+    download(backupName(), JSON.stringify(backupData(), null, 2), 'application/json');
+    markBackedUp();
+  });
+
+  /* Weekly backup reminder. A phone won't let a web app save a file
+     without a tap, so when the last backup is 7 or more days old (or there
+     has never been one) a bar asks for one tap. On phones it opens the
+     share menu so the file can go straight to Drive, email and so on;
+     elsewhere it downloads. Later hides it until tomorrow. */
+  var BACKUP_DAYS = 7;
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function checkBackupDue() {
+    var bar = $('backupBar');
+    var today = todayISO();
+    var last = lsGet('cs.lastBackup');
+    var has = state.entries.length || state.fills.length;
+    var gap = last && C.isISODate(last) ? Math.round((C.parseISO(today) - C.parseISO(last)) / 864e5) : null;
+    var due = has && !syncOn() && (gap == null || gap >= BACKUP_DAYS) && lsGet('cs.backupSnooze') !== today;
+    bar.hidden = !due;
+    if (due) {
+      $('backupText').textContent = gap == null ? 'No backup yet. Save one to keep your data safe.'
+        : 'Last backup ' + gap + ' days ago. Time for this week\'s.';
+    }
+  }
+  $('backupNow').addEventListener('click', function () {
+    var text = JSON.stringify(backupData(), null, 2);
+    var file = null;
+    try { file = new File([text], backupName(), { type: 'application/json' }); } catch (e) { file = null; }
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: 'Commute Savings backup' }).then(function () {
+        markBackedUp();
+        toast('Backup saved');
+      }).catch(function (err) {
+        if (err && err.name === 'AbortError') return; // closed the share menu: still due
+        download(backupName(), text, 'application/json');
+        markBackedUp();
+      });
+      return;
+    }
+    download(backupName(), text, 'application/json');
+    markBackedUp();
+    toast('Backup downloaded');
+  });
+  $('backupLater').addEventListener('click', function () {
+    try { localStorage.setItem('cs.backupSnooze', todayISO()); } catch (e) { /* private mode */ }
+    $('backupBar').hidden = true;
   });
 
   $('restoreJson').addEventListener('change', function (ev) {
@@ -1827,6 +1879,8 @@
       $('storageNote').textContent = store.mode() === 'idb' ? '' : 'Saving in basic browser storage (IndexedDB is unavailable here).';
       render();
       renderSync();
+      checkBackupDue();
+      document.addEventListener('visibilitychange', function () { if (!document.hidden) checkBackupDue(); });
       if (syncOn()) { preloadGoogle(); syncWake(); }
       else if (GOOGLE_CLIENT_ID) setTimeout(preloadGoogle, 3000);
       if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {});
