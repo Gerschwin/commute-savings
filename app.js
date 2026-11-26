@@ -199,16 +199,25 @@
     return bits.join(', ');
   }
 
-  /* Every exercise record, commute ones included, newest first. A phone
-     steps record becomes the walking above what the app already has that day. */
+  /* Days you didn't drive: anything logged except No commute. */
+  function carFreeDays() {
+    var d = {};
+    state.entries.forEach(function (e) { if (e.type !== 'off') d[e.date] = true; });
+    return d;
+  }
+
+  /* Commute exercise only, newest first: the legs on days you didn't drive,
+     plus phone steps on those days, as the walking above what the app
+     already has that day. Older hand added walks, runs and rides stay saved
+     but no longer count. */
   function allExercise() {
-    var list = state.exercise.filter(function (x) { return x.kind !== 'phone'; }).map(fillIn);
+    var list = [], free = carFreeDays();
     state.entries.forEach(function (e) {
       if (e.ex) list.push(Object.assign({ id: 'e:' + e.id, entryId: e.id, date: e.date, ts: e.ts, label: 'Commute' }, fillIn(e.ex)));
       if (e.ex2) list.push(Object.assign({ id: 'e2:' + e.id, entryId: e.id, date: e.date, ts: e.ts, label: 'Commute' }, fillIn(e.ex2)));
     });
     state.exercise.forEach(function (ph) {
-      if (ph.kind !== 'phone') return;
+      if (ph.kind !== 'phone' || !free[ph.date]) return;
       var other = 0;
       list.forEach(function (x) { if (x.date === ph.date && x.kind !== 'cycle') other += x.steps || 0; });
       var w = C.phoneWalk(ph.steps, other, state.settings);
@@ -996,8 +1005,10 @@
     $('exGoalText').className = left <= 0 ? 'reached' : '';
     $('exGoalTarget').textContent = 'goal ' + s.activeGoal + ' mi';
     $('exMotivator').textContent = motivator(t, s);
-    $('exStreak').hidden = t.streak < 2;
-    $('exStreak').textContent = t.streak + ' day streak';
+    var streak = C.carFreeStreak(state.entries, todayISO());
+    $('exStreak').hidden = streak < 2;
+    $('exStreak').textContent = streak + ' car free days';
+    $('exStreak').title = 'Weekdays in a row you didn\'t drive. Weekends and No commute days never break it.';
 
     var ul = $('exList');
     ul.textContent = '';
@@ -1049,52 +1060,6 @@
     if (!silent) toast('Deleted exercise', function () { addExercise(x, true); toast('Restored'); });
   }
 
-  var exForm = $('exForm');
-  function exInput() {
-    return {
-      kind: exForm.elements.kind.value,
-      miles: parseFloat(exForm.elements.miles.value) || 0,
-      steps: parseInt(String(exForm.elements.steps.value).replace(/[,\s]/g, ''), 10) || 0,
-      mins: parseInt(exForm.elements.mins.value, 10) || 0
-    };
-  }
-  function exPreview() {
-    var inp = exInput();
-    $('exStepsField').hidden = inp.kind === 'cycle';
-    $('exError').textContent = '';
-    if (!inp.miles && !inp.steps) {
-      $('exPreview').textContent = 'Your commute walking and cycling is added for you when you log a train day (distances in Settings).';
-      return;
-    }
-    if (!inp.miles && !(state.settings.heightCm > 0)) {
-      $('exPreview').textContent = 'Add your height in Settings to turn steps into miles.';
-      return;
-    }
-    var r = C.exerciseCalc(inp, state.settings);
-    var bits = [r.miles + ' mi'];
-    if (r.steps && !inp.steps) bits.push('about ' + fmtInt(r.steps) + ' steps');
-    bits.push(r.mins + ' min');
-    if (r.kcal != null) bits.push('about ' + fmtInt(r.kcal) + ' kcal');
-    $('exPreview').textContent = bits.join(', ') + '.';
-  }
-  exForm.addEventListener('input', exPreview);
-  exForm.addEventListener('change', exPreview);
-  exForm.addEventListener('submit', function (ev) {
-    ev.preventDefault();
-    var inp = exInput();
-    if (inp.kind === 'cycle') inp.steps = 0;
-    var err = '';
-    if (!inp.miles && !inp.steps) err = inp.kind === 'cycle' ? 'Enter the miles.' : 'Enter miles or steps.';
-    else if (!inp.miles && !(state.settings.heightCm > 0)) err = 'Add your height in Settings first, or enter miles.';
-    else if (inp.miles > 200 || inp.steps > 100000) err = 'That looks too big, check the figure.';
-    $('exError').textContent = err;
-    if (err) return;
-    var date = C.isISODate(exForm.elements.date.value) ? exForm.elements.date.value : todayISO();
-    var r = C.exerciseCalc(inp, state.settings);
-    addExercise(sanitiseEx(Object.assign({ id: uid(), ts: Date.now(), date: date }, r)));
-    ['miles', 'steps', 'mins'].forEach(function (k) { exForm.elements[k].value = ''; });
-    exPreview();
-  });
   $('exOpenSettings').addEventListener('click', function () { openSettings(); });
 
   /* Phone steps: one total per day; saving again for the same day replaces it. */
@@ -1102,6 +1067,10 @@
   function phonePreview() {
     var n = parseInt(String(phoneForm.elements.steps.value).replace(/[,\s]/g, ''), 10) || 0;
     var date = C.isISODate(phoneForm.elements.date.value) ? phoneForm.elements.date.value : todayISO();
+    if (!carFreeDays()[date]) {
+      $('phonePreview').textContent = 'Steps only count on days you didn\'t drive. Log ' + (date === todayISO() ? 'today' : 'that day') + ' first.';
+      return;
+    }
     var other = 0;
     allExercise().forEach(function (x) { if (x.date === date && x.phoneTotal == null && x.kind !== 'cycle') other += x.steps || 0; });
     if (!n) {
@@ -1120,6 +1089,7 @@
     var n = parseInt(String(phoneForm.elements.steps.value).replace(/[,\s]/g, ''), 10) || 0;
     if (!(n > 0) || n > 100000) { $('phonePreview').textContent = n > 100000 ? 'That looks too big, check the figure.' : 'Enter the steps from your phone.'; return; }
     var date = C.isISODate(phoneForm.elements.date.value) ? phoneForm.elements.date.value : todayISO();
+    if (!carFreeDays()[date]) { phonePreview(); return; }
     var old = state.exercise.filter(function (x) { return x.kind === 'phone' && x.date === date; });
     var rec = sanitiseEx({ id: uid(), ts: Date.now(), date: date, kind: 'phone', steps: n, miles: 0 });
     state.exercise = state.exercise.filter(function (x) { return old.indexOf(x) < 0; });
@@ -1527,10 +1497,8 @@
     var t = todayISO();
     fillForm.elements.date.max = t;
     if (!fillForm.elements.date.value) fillForm.elements.date.value = t;
-    exForm.elements.date.max = t;
     phoneForm.elements.date.max = t;
     if (!phoneForm.elements.date.value) phoneForm.elements.date.value = t;
-    if (!exForm.elements.date.value) exForm.elements.date.value = t;
     $('logDate').max = t;
     if (!$('logDate').value || $('logDate').value > t) $('logDate').value = t;
   }

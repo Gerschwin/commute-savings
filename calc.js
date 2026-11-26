@@ -710,6 +710,27 @@
     return t;
   }
 
+  /* Car free streak: weekdays in a row you logged a day you didn't drive
+     (train, drove to station, lift, trip), counting back from today.
+     Weekends and No commute days never break it but count if logged.
+     A blank weekday is a day you drove, so it breaks it; today not
+     logged yet doesn't. */
+  function carFreeStreak(entries, todayISO) {
+    var free = {}, rest = {};
+    entries.forEach(function (e) {
+      if (e.type === 'off') rest[e.date] = true;
+      else free[e.date] = true;
+    });
+    var n = 0, d = parseISO(todayISO);
+    for (var i = 0; i < 800; i++) {
+      var iso = toISO(d), dow = d.getDay();
+      if (free[iso]) n++;
+      else if (!(dow === 0 || dow === 6 || rest[iso]) && i > 0) break;
+      d.setDate(d.getDate() - 1);
+    }
+    return n;
+  }
+
   var TYPES = ['train', 'station', 'lift', 'off', 'custom'];
 
   /* ---------- settings validation ---------- */
@@ -820,6 +841,7 @@
     entryMiles: entryMiles,
     milesTotals: milesTotals,
     walkedTotals: walkedTotals,
+    carFreeStreak: carFreeStreak,
     cumulativeByDay: cumulativeByDay,
     cumulativeByPeriod: cumulativeByPeriod,
     payday: payday,

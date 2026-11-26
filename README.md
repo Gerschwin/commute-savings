@@ -206,20 +206,24 @@ Airdrie and Queen Street). Then:
 * **Train, drove to station**: work leg walked (1.6 miles)
 
 Set Station to work to 0 if you don't walk that bit. Days already logged keep
-the distances they were logged with. You can add other walks, runs and rides
-in the **Exercise** card, by miles or by steps.
+the distances they were logged with. The **Exercise** card is commute only: it
+counts just the walking and cycling on days you didn't drive, plus phone steps
+on those days. It isn't a general fitness tracker, so there's no box for other
+walks, runs or rides (any added in older versions stay saved but don't count).
 
 The card shows this month's miles walked and cycled, steps, calories, a
-monthly active miles goal, a streak of active days (weekends never break it),
+monthly active miles goal, a car free streak (weekdays in a row you logged a
+day you didn't drive; weekends and No commute days never break it, a blank
+weekday counts as a day you drove and does),
 and a changing line of encouragement.
 
 Add your **weight** (st & lb, kg or lb) and **height** (e.g. 5'10 or 178) in
 Settings for calories and steps. They stay on your phone.
 
 **Phone steps**: type the day's total from your phone in the Exercise card.
-Only the steps above what the app already has for that day (commute plus any
-walks you added) are counted, as easy walking at 2.5 mph, so nothing is
-counted twice. Saving again for the same day replaces the figure. Steps
+It only counts on a day you've logged as not driving (log the day first).
+Only the steps above what the app already has for that day's commute are
+counted, as easy walking at 2.5 mph, so nothing is counted twice. Saving again for the same day replaces the figure. Steps
 never change the money figures.
 
 Each logged day shows its miles, steps and calories, and the Calories box
@@ -416,7 +420,7 @@ a few weeks. Taking a backup now and then is a good habit.
 * **Got a lift**: saves the whole drive (fuel, with wear in brackets), no
   fare. Doesn't count as a train day.
 * **No commute**: for holidays, sick days or working from home. Saves
-  nothing, but like a weekend it never breaks your exercise streak.
+  nothing, but like a weekend it never breaks your car free streak.
 * **Undo**: every add or delete shows a message with **Undo** for 6 seconds.
 * **Dark mode**: the round button next to Settings switches between Match
   phone (half circle), Dark (moon) and Light (sun). It's remembered on that

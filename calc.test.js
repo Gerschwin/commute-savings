@@ -597,4 +597,18 @@ test('miles walked by period', () => {
   assert.strictEqual(w.all, 7.8);
 });
 
+test('car free streak', () => {
+  // Thu 26 Nov 2026. Wed 25 train, Tue 24 off, Mon 23 lift, Sat 21 trip, Fri 20 blank (drove)
+  const es = [
+    { date: '2026-11-25', type: 'train' },
+    { date: '2026-11-24', type: 'off' },
+    { date: '2026-11-23', type: 'lift' },
+    { date: '2026-11-21', type: 'custom', trip: true },
+    { date: '2026-11-19', type: 'train' }
+  ];
+  assert.strictEqual(C.carFreeStreak(es, '2026-11-26'), 3); // today not logged yet holds it
+  assert.strictEqual(C.carFreeStreak(es, '2026-11-27'), 0); // Thu blank: drove
+  assert.strictEqual(C.carFreeStreak([], '2026-11-26'), 0);
+});
+
 console.log('\n' + passed + ' passed' + (process.exitCode ? ', some FAILED' : ''));

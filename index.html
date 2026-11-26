@@ -125,7 +125,7 @@
             <span class="big-btn-amount">£0</span>
           </button>
         </div>
-        <p class="hint" id="offHint">No commute is for holidays, sick days or working from home. It saves nothing but keeps your exercise streak going.</p>
+        <p class="hint" id="offHint">No commute is for holidays, sick days or working from home. It saves nothing but never breaks your car free streak.</p>
       </div>
     </section>
 
@@ -217,22 +217,8 @@
         <label class="field"><span>Phone steps</span><input name="steps" inputmode="numeric" autocomplete="off" placeholder="e.g. 12,500"></label>
         <label class="field"><span>Day</span><input type="date" name="date"></label>
         <p class="hint span2" id="phonePreview">Only steps above what the app already has for that day are added, as easy walking.</p>
+        <p class="hint span2">Only your commute counts here: the walking and cycling on days you didn't drive, plus phone steps on those days.</p>
         <button type="submit" class="btn primary span2">Save phone steps</button>
-      </form>
-      <form id="exForm" class="ex-form" novalidate>
-        <fieldset class="seg span2">
-          <legend class="sr-only">Activity</legend>
-          <label><input type="radio" name="kind" value="walk" checked><span>Walk</span></label>
-          <label><input type="radio" name="kind" value="run"><span>Run</span></label>
-          <label><input type="radio" name="kind" value="cycle"><span>Cycle</span></label>
-        </fieldset>
-        <label class="field"><span>Miles</span><input name="miles" inputmode="decimal" autocomplete="off" placeholder="0.0"></label>
-        <label class="field" id="exStepsField"><span>or steps</span><input name="steps" inputmode="numeric" autocomplete="off" placeholder="0"></label>
-        <label class="field"><span>Minutes (optional)</span><input name="mins" inputmode="numeric" autocomplete="off" placeholder="auto"></label>
-        <label class="field"><span>Date</span><input type="date" name="date"></label>
-        <p class="hint span2" id="exPreview">Your commute walking and cycling is added for you when you log a train day (distances in Settings).</p>
-        <p class="error span2" id="exError" role="alert"></p>
-        <button type="submit" class="btn primary span2">Add exercise</button>
       </form>
       <ul class="log ex-list" id="exList"></ul>
     </section>
