@@ -96,7 +96,8 @@
   var state = {
     entries: [],
     settings: Object.assign({}, C.DEFAULTS),
-    listLimit: 30,
+    monthLimit: 6,
+    openMonths: {},
     fills: [],
     stats: null,
     exercise: []
@@ -549,30 +550,70 @@
     return '';
   }
 
+  function entryRow(e) {
+    var v = C.displayValue(e, false);
+    var del = el('button', { type: 'button', class: 'del', 'aria-label': 'Delete ' + (e.label || 'entry') + ' on ' + C.shortDate(e.date) });
+    del.innerHTML = DELETE_ICON;
+    del.addEventListener('click', function () { removeEntry(e.id); });
+    return el('li', null, [
+      el('div', null, [
+        el('span', { class: 'when', text: C.shortDate(e.date) + (e.date.slice(0, 4) !== todayISO().slice(0, 4) ? ' ' + e.date.slice(0, 4) : '') }),
+        el('span', { class: 'what', text: e.label || (e.type === 'custom' ? 'Other saving' : 'Train') }),
+        entrySub(e) ? el('span', { class: 'sub', text: entrySub(e) }) : null,
+        exSummary(entryExercise(e)) ? el('span', { class: 'sub ex-sub', text: exSummary(entryExercise(e)) }) : null
+      ]),
+      el('span', { class: 'amt' + (v < 0 ? ' neg' : ''), text: C.money(v) }),
+      del
+    ]);
+  }
+
+  /* The log folds into months (pay or calendar, as in Settings), newest
+     first. Only this month starts open; older months show a one line
+     summary until tapped. A few months show, then "Show older months". */
+  var MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  function periodName(p) {
+    var thisYear = todayISO().slice(0, 4);
+    if (state.settings.monthStart === 'calendar') {
+      return MONTH_NAMES[Number(p.start.slice(5, 7)) - 1] + (p.start.slice(0, 4) !== thisYear ? ' ' + p.start.slice(0, 4) : '');
+    }
+    return dm(p.start) + ' to ' + dm(p.end) + (p.end.slice(0, 4) !== thisYear ? ' ' + p.end.slice(0, 4) : '');
+  }
   function renderList() {
     var list = $('logList');
     list.textContent = '';
-    var shown = state.entries.slice(0, state.listLimit);
-    shown.forEach(function (e) {
-      var v = C.displayValue(e, false);
-      var del = el('button', { type: 'button', class: 'del', 'aria-label': 'Delete ' + (e.label || 'entry') + ' on ' + C.shortDate(e.date) });
-      del.innerHTML = DELETE_ICON;
-      del.addEventListener('click', function () { removeEntry(e.id); });
-      list.appendChild(el('li', null, [
-        el('div', null, [
-          el('span', { class: 'when', text: C.shortDate(e.date) + (e.date.slice(0, 4) !== todayISO().slice(0, 4) ? ' ' + e.date.slice(0, 4) : '') }),
-          el('span', { class: 'what', text: e.label || (e.type === 'custom' ? 'Other saving' : 'Train') }),
-          entrySub(e) ? el('span', { class: 'sub', text: entrySub(e) }) : null,
-          exSummary(entryExercise(e)) ? el('span', { class: 'sub ex-sub', text: exSummary(entryExercise(e)) }) : null
-        ]),
-        el('span', { class: 'amt' + (v < 0 ? ' neg' : ''), text: C.money(v) }),
-        del
+    var groups = [], byKey = {};
+    state.entries.forEach(function (e) {
+      var p = payPeriod(e.date);
+      var g = byKey[p.start];
+      if (!g) { g = byKey[p.start] = { p: p, items: [], total: 0, days: {} }; groups.push(g); }
+      g.items.push(e);
+      g.total += C.displayValue(e, false);
+      if (e.type !== 'off') g.days[e.date] = true;
+    });
+    var current = payPeriod().start;
+    groups.slice(0, state.monthLimit).forEach(function (g) {
+      var key = g.p.start;
+      var open = state.openMonths[key] != null ? state.openMonths[key] : key === current;
+      var n = Object.keys(g.days).length;
+      var det = el('details', { class: 'log-month' });
+      det.open = open;
+      det.appendChild(el('summary', null, [
+        el('span', { class: 'lm-name', text: periodName(g.p) }),
+        el('span', { class: 'lm-days', text: n + (n === 1 ? ' day' : ' days') }),
+        el('span', { class: 'lm-total' + (g.total < 0 ? ' neg' : ''), text: C.money(C.round2(g.total)) })
       ]));
+      var ul = el('ul', { class: 'log' });
+      var fill = function () { if (!ul.firstChild) g.items.forEach(function (e) { ul.appendChild(entryRow(e)); }); };
+      if (open) fill();
+      det.appendChild(ul);
+      det.addEventListener('toggle', function () { state.openMonths[key] = det.open; if (det.open) fill(); });
+      list.appendChild(det);
     });
     $('logEmpty').hidden = state.entries.length > 0;
     var more = $('showMore');
-    more.hidden = state.entries.length <= state.listLimit;
-    more.textContent = 'Show more (' + (state.entries.length - state.listLimit) + ' older)';
+    var older = groups.length - state.monthLimit;
+    more.hidden = older <= 0;
+    more.textContent = 'Show older months (' + older + ')';
   }
 
   /* ---------- chart: stepped cumulative area in inline SVG ---------- */
@@ -1383,7 +1424,7 @@
   });
 
   $('showMore').addEventListener('click', function () {
-    state.listLimit += 50;
+    state.monthLimit += 12;
     renderList();
   });
 

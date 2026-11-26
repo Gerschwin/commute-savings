@@ -34,6 +34,11 @@ turn on Google Drive sync.
 
 Each entry stores its fuel saving and wear saving, worked out with the settings
 at the moment you logged it. Changing a setting later never rewrites old days.
+The **Log** folds into months (pay months, or calendar months if set in
+Settings), newest first, each with its day count and total. Only this month
+starts open; tap any month to open it. Six months show, then **Show older
+months** adds a year at a time, so the page stays short as the log grows.
+
 Totals, the chart, the target and the log show the fuel saving. With "Show
 van wear in brackets beside totals" on (the default from v1.20.0), each total
 also shows the van wear for the same days, small and in brackets, on top of
