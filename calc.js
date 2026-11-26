@@ -197,14 +197,14 @@
     return Math.max(0, m);
   }
 
-  /* Miles not driven for today, this week, month (or pay month), year and all time. */
-  function milesTotals(entries, todayISO, settings, period) {
+  /* Sum value(item) for today, this week, month (or pay month), year and all time. */
+  function periodSums(items, todayISO, period, value) {
     var t = { today: 0, week: 0, month: 0, year: 0, all: 0 };
     var weekStart = mondayOf(todayISO);
     var p = period || calendarPeriod(todayISO);
     var year = todayISO.slice(0, 4);
-    entries.forEach(function (e) {
-      var m = entryMiles(e, settings);
+    items.forEach(function (e) {
+      var m = value(e);
       if (!m) return;
       t.all += m;
       if (e.date.slice(0, 4) === year) t.year += m;
@@ -214,6 +214,16 @@
     });
     Object.keys(t).forEach(function (k) { t[k] = Math.round(t[k] * 10) / 10; });
     return t;
+  }
+
+  /* Miles not driven, by period. */
+  function milesTotals(entries, todayISO, settings, period) {
+    return periodSums(entries, todayISO, period, function (e) { return entryMiles(e, settings); });
+  }
+
+  /* Miles walked (walks and runs, phone steps included), by period. */
+  function walkedTotals(records, todayISO, period) {
+    return periodSums(records, todayISO, period, function (r) { return r.kind === 'walk' || r.kind === 'run' ? Number(r.miles) || 0 : 0; });
   }
 
   /* Cumulative savings per day of a period: array of length period.days. */
@@ -809,6 +819,7 @@
     totals: totals,
     entryMiles: entryMiles,
     milesTotals: milesTotals,
+    walkedTotals: walkedTotals,
     cumulativeByDay: cumulativeByDay,
     cumulativeByPeriod: cumulativeByPeriod,
     payday: payday,

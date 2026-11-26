@@ -428,9 +428,16 @@
     $('heroDays').textContent = t.trainDaysMonth + (t.trainDaysMonth === 1 ? ' train day' : ' train days');
     var mt = C.milesTotals(state.entries, today, s, p);
     var miStr = function (m) { return (m >= 100 ? Math.round(m).toLocaleString('en-GB') : String(m)) + (m === 1 ? ' mile' : ' miles'); };
-    $('heroMiles').textContent = miStr(mt.month) + ' not driven';
+    var wt = C.walkedTotals(allExercise(), today, p);
+    var milesLine = function (k) {
+      var bits = [];
+      if (wt[k]) bits.push(miStr(wt[k]) + ' walked');
+      if (mt[k]) bits.push(miStr(mt[k]) + ' not driven');
+      return bits.join(', ');
+    };
+    $('heroMiles').textContent = milesLine('month');
     [['mToday', 'today'], ['mWeek', 'week'], ['mMonth', 'month'], ['mYear', 'year'], ['mAll', 'all']].forEach(function (x) {
-      $(x[0]).textContent = mt[x[1]] ? miStr(mt[x[1]]) + ' not driven' : '';
+      $(x[0]).textContent = milesLine(x[1]);
     });
 
     var pct = s.target > 0 ? Math.max(0, Math.min(100, t.month / s.target * 100)) : 0;

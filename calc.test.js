@@ -585,4 +585,16 @@ test('miles not driven', () => {
   assert.strictEqual(m.all, m.month);
 });
 
+test('miles walked by period', () => {
+  const w = C.walkedTotals([
+    { date: '2026-11-26', kind: 'walk', miles: 4.8 },
+    { date: '2026-11-25', kind: 'cycle', miles: 3.2 },
+    { date: '2026-11-25', kind: 'run', miles: 2 },
+    { date: '2025-12-01', kind: 'walk', miles: 1 }
+  ], '2026-11-26');
+  assert.strictEqual(w.today, 4.8);
+  assert.strictEqual(w.month, 6.8);
+  assert.strictEqual(w.all, 7.8);
+});
+
 console.log('\n' + passed + ' passed' + (process.exitCode ? ', some FAILED' : ''));

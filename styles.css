@@ -114,7 +114,8 @@ input { font-size: 16px; }
 .wear-part { font-size: .42em; font-weight: 700; opacity: .75; letter-spacing: 0; white-space: nowrap; }
 .hero-figure .wear-part { font-size: .3em; }
 .hero-sub strong { font-weight: 700; }
-#heroMiles { white-space: nowrap; }
+#heroMiles { display: block; margin-top: 2px; color: var(--muted); font-size: .95rem; }
+#heroMiles:empty { display: none; }
 
 .progress { height: 14px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
 .progress-fill { height: 100%; width: 0; background: var(--accent); border-radius: 99px; transition: width .4s ease; }
