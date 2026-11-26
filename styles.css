@@ -120,8 +120,11 @@ input { font-size: 16px; }
 .progress { height: 14px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
 .progress-fill { height: 100%; width: 0; background: var(--accent); border-radius: 99px; transition: width .4s ease; }
 .progress-text { display: flex; justify-content: space-between; gap: 12px; margin: 8px 0 0; font-weight: 600; }
-.progress-text .muted { font-weight: 500; }
+.progress-text .muted { font-weight: 500; white-space: nowrap; }
 .progress-text .reached { color: var(--ok); }
+.progress-text .days-left { font-weight: 500; color: var(--muted); white-space: nowrap; }
+.hero-all { margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--line); font-size: .95rem; color: var(--muted); }
+.hero-all strong { color: var(--text); font-weight: 700; }
 
 /* ---------- cards ---------- */
 .card { background: var(--surface); border-radius: var(--radius); padding: 18px 16px; margin: 0 0 14px; }

@@ -447,6 +447,9 @@
     var toGoEl = $('toGo');
     if (toGo <= 0) { toGoEl.textContent = 'Target reached'; toGoEl.className = 'reached'; }
     else { toGoEl.textContent = C.money(toGo) + ' to go'; toGoEl.className = ''; }
+    // Days left in the month (or pay month), today included.
+    var left = Math.round((C.parseISO(p.end) - C.parseISO(today)) / 864e5) + 1;
+    $('daysLeft').textContent = left <= 1 ? 'last day' : left + ' days left';
     $('targetText').textContent = 'target ' + C.money(s.target);
 
     // button amounts (what a tap would add now)
@@ -500,6 +503,14 @@
       if (w && w[k]) { n.appendChild(document.createTextNode(' ')); n.appendChild(el('small', { class: 'wear-part', text: '(' + C.money(w[k]) + ')' })); }
     }
     showTotal('heroAmount', 'month');
+    // All time line under the target.
+    var allBits = [C.money(t.all) + ' saved' + (w && w.all ? ' (' + C.money(w.all) + ' wear)' : '')];
+    if (mt.all) allBits.push(miStr(mt.all) + ' not driven');
+    if (wt.all) allBits.push(miStr(wt.all) + ' walked');
+    $('heroAll').textContent = '';
+    $('heroAll').appendChild(el('strong', { text: 'All time: ' }));
+    $('heroAll').appendChild(document.createTextNode(allBits.join(', ')));
+    $('heroAll').hidden = !(t.all || mt.all || wt.all);
     showTotal('tToday', 'today');
     showTotal('tWeek', 'week');
     showTotal('tMonth', 'month');

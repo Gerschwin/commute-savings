@@ -41,6 +41,9 @@ it: £14.10 (£16.04) means £14.10 fuel saved plus £16.04 of van wear.
 
 **Miles walked** (walks and runs, phone steps included) and **miles not
 driven** show under the month total at the top and under each running total.
+Under the target bar: the days left in the month (or pay month, today
+included) and an **All time** line with money saved (wear in brackets),
+miles not driven and miles walked.
 Miles not driven is the whole drive for a train day or a lift (a trip's own
 miles), less the station run on a drove-to-station day.
 
