@@ -546,6 +546,7 @@ test('trip days count separately and not as train days', () => {
 
 test('van wear defaults to 20p a mile', () => {
   assert.strictEqual(C.DEFAULTS.wearPence, 20);
+  assert.strictEqual(C.DEFAULTS.includeWear, true);
   assert.strictEqual(C.entrySaving('train', C.DEFAULTS).wear, 6.80);
 });
 

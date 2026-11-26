@@ -111,6 +111,8 @@ input { font-size: 16px; }
   font-variant-numeric: tabular-nums;
 }
 .hero-sub { margin: 6px 0 16px; font-size: 1.1rem; }
+.wear-part { font-size: .42em; font-weight: 700; opacity: .75; letter-spacing: 0; white-space: nowrap; }
+.hero-figure .wear-part { font-size: .3em; }
 .hero-sub strong { font-weight: 700; }
 
 .progress { height: 14px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
@@ -212,6 +214,7 @@ input { font-size: 16px; }
 .totals dd {
   margin: 2px 0 0; font-family: var(--font-num); font-weight: 800;
   font-size: 2rem; line-height: 1.05; font-variant-numeric: tabular-nums;
+  display: flex; flex-wrap: wrap; align-items: baseline; column-gap: .3em;
 }
 
 /* ---------- log list ---------- */

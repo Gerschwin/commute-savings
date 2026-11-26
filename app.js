@@ -425,7 +425,6 @@
       ? now.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
       : dm(p.start) + ' to ' + dm(p.end);
     $('heroLabel').textContent = s.monthStart === 'calendar' ? 'saved this month' : 'saved this pay month';
-    $('heroAmount').textContent = C.money(t.month);
     $('heroDays').textContent = t.trainDaysMonth + (t.trainDaysMonth === 1 ? ' train day' : ' train days');
 
     var pct = s.target > 0 ? Math.max(0, Math.min(100, t.month / s.target * 100)) : 0;
@@ -475,16 +474,30 @@
     document.querySelectorAll('[data-amount="station"]').forEach(function (n) { n.textContent = missing ? '+£–' : (st >= 0 ? '+' : '') + C.money(st); });
 
     // totals
-    $('tToday').textContent = C.money(t.today);
-    $('tWeek').textContent = C.money(t.week);
-    $('tMonth').textContent = C.money(t.month);
+    // With van wear on, each total shows its wear part small, in brackets.
+    var w = null;
+    if (s.includeWear) {
+      var f = C.totals(state.entries, today, false, p);
+      w = {};
+      ['today', 'week', 'month', 'year', 'all'].forEach(function (k) { w[k] = C.round2(t[k] - f[k]); });
+    }
+    function showTotal(id, k) {
+      var n = $(id);
+      n.textContent = C.money(t[k]);
+      if (w && w[k]) { n.appendChild(document.createTextNode(' ')); n.appendChild(el('small', { class: 'wear-part', text: '(' + C.money(w[k]) + ')' })); }
+    }
+    showTotal('heroAmount', 'month');
+    showTotal('tToday', 'today');
+    showTotal('tWeek', 'week');
+    showTotal('tMonth', 'month');
     $('tMonthLabel').textContent = s.monthStart === 'calendar' ? 'This month' : 'This pay month';
-    $('tYear').textContent = C.money(t.year);
-    $('tAll').textContent = C.money(t.all);
+    showTotal('tYear', 'year');
+    showTotal('tAll', 'all');
     $('tripsNote').hidden = !(t.tripsAll > 0);
     $('tripsNote').textContent = 'Includes ' + C.money(t.tripsMonth) + ' from trips this ' + (s.monthStart === 'calendar' ? 'month' : 'pay month') +
       ' (' + C.money(t.tripsAll) + ' all time).';
-    $('wearHint').textContent = s.includeWear ? 'Totals include van wear.' : 'Fuel savings only. Van wear can be added in Settings.';
+    $('wearHint').textContent = s.includeWear ? 'Totals include van wear (depreciation, servicing, tyres) at ' + s.wearPence + 'p a mile. The figure in brackets is the van wear part.'
+      : 'Fuel savings only. Van wear can be added in Settings.';
 
     renderList();
     renderFuel();
@@ -1749,16 +1762,18 @@
   /* ================= boot ================= */
   resetDate();
   /* One time, Nov 2026: van wear went from a 10p guess to 20p a mile
-     (about 9p depreciation + 11p servicing, tyres and brakes). A phone still
-     on the old 10p default moves to 20p and is offered the past days. */
-  function wearTo20() {
-    var KEY = 'cs.wear20';
+     (about 9p depreciation + 11p servicing, tyres and brakes) and is now
+     counted in totals. A phone still on 10p moves to 20p, wear is switched
+     on, and days worked out at 10p are updated (with Undo). */
+  function wearUpgrade() {
+    var KEY = 'cs.wearOn';
     try { if (localStorage.getItem(KEY)) return; localStorage.setItem(KEY, '1'); } catch (e) { return; }
-    if (Number(state.settings.wearPence) !== 10) return;
-    var oldS = state.settings;
-    state.settings = Object.assign({}, oldS, { wearPence: 20 });
-    store.saveSettings(state.settings).catch(saveFailed);
-    setTimeout(function () { offerSettingsRecalc(oldS, state.settings); }, 0);
+    var ns = Object.assign({}, state.settings, { includeWear: true });
+    if (Number(ns.wearPence) === 10) ns.wearPence = 20;
+    state.settings = ns;
+    store.saveSettings(ns).catch(saveFailed);
+    var changes = C.recalcFromSettings(state.entries, Object.assign({}, ns, { wearPence: 10 }), ns);
+    if (changes.length) setTimeout(function () { applyChanges(changes); }, 0);
   }
 
   store.init()
@@ -1772,7 +1787,7 @@
         if (v.ok) state.settings = v.settings;
       }
       sortEntries();
-      wearTo20();
+      wearUpgrade();
       recalcStats();
       $('storageNote').textContent = store.mode() === 'idb' ? '' : 'Saving in basic browser storage (IndexedDB is unavailable here).';
       render();

@@ -23,7 +23,7 @@
     stationMpg: 15,     // mpg on short cold station runs
     wearPence: 20,      // van depreciation + wear pence per mile (about 9p + 11p for a 2012 Vellfire)
     target: 90,         // monthly target £
-    includeWear: false,
+    includeWear: true,  // van wear counts in totals (shown in brackets)
     useFills: true,     // use real mpg and price from the fuel log when there is enough data
     odoUnit: 'mi',      // odometer unit for the fuel log ("mi" or "km")
     // exercise

@@ -34,14 +34,16 @@ turn on Google Drive sync.
 
 Each entry stores its fuel saving and wear saving, worked out with the settings
 at the moment you logged it. Changing a setting later never rewrites old days.
-The figure shown is the fuel saving, plus the wear saving if "Include van wear
-in totals" is switched on.
+The figure shown is the fuel saving plus the wear saving ("Include van wear
+in totals", on by default from v1.20.0). Each total then shows its van wear
+part small, in brackets: £30.14 (£16.04) means £16.04 of it is wear.
 
 **Van wear** is 20p a mile: about 9p depreciation plus 11p servicing, tyres,
 brakes and age related wear, for a £10k 2012 Vellfire doing 10,000 to 12,000
 miles a year. 18p to 24p is a fair range (roughly £2,000 to £2,650 a year at
 11,000 miles). It was a 10p guess before v1.19.0; a phone still on 10p moves
-to 20p once and is offered the past days. Changing mpg, petrol price or van
+to 20p once, wear is switched on, and days worked out at 10p are updated
+by themselves (with Undo). Changing mpg, petrol price or van
 wear in Settings offers to update the past days worked out with the old
 figure, with Undo.
 
