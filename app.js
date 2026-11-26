@@ -340,7 +340,7 @@
     if (!silent) {
       var exNote = exSummary(entryExercise(entry));
       if (exNote) exNote = ' · ' + exNote;
-      toast('Added ' + C.money(C.displayValue(entry, state.settings.includeWear)) + exNote + ' · ' + C.shortDate(entry.date), function () {
+      toast('Added ' + C.money(C.displayValue(entry, false)) + exNote + ' · ' + C.shortDate(entry.date), function () {
         removeEntry(entry.id, true);
         toast('Removed');
       });
@@ -417,7 +417,7 @@
     var s = state.settings;
     var today = todayISO();
     var p = payPeriod();
-    var t = C.totals(state.entries, today, s.includeWear, p);
+    var t = C.totals(state.entries, today, false, p);
     var now = C.parseISO(today);
 
     // hero
@@ -438,8 +438,8 @@
 
     // button amounts (what a tap would add now)
     var eff = current();
-    var tr = C.displayValue(C.entrySaving('train', eff), s.includeWear);
-    var st = C.displayValue(C.entrySaving('station', eff), s.includeWear);
+    var tr = C.displayValue(C.entrySaving('train', eff), false);
+    var st = C.displayValue(C.entrySaving('station', eff), false);
     var rs = routeNow();
     renderRoutes();
     var oneOff = logRoute === 'oneoff', missing = oneOffMissing();
@@ -467,19 +467,19 @@
       var on = df === null ? b.dataset.fare === 'return' : C.round2(v) === df;
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
-    var lf = C.displayValue(C.entrySaving('lift', eff), s.includeWear);
+    var lf = C.displayValue(C.entrySaving('lift', eff), false);
     var dash = oneOff && !(oneOffTrip().miles > 0);
     document.querySelectorAll('[data-amount="train"]').forEach(function (n) { n.textContent = missing ? '+£–' : '+' + C.money(tr); });
     document.querySelectorAll('[data-amount="lift"]').forEach(function (n) { n.textContent = dash ? '+£–' : '+' + C.money(lf); });
     document.querySelectorAll('[data-amount="station"]').forEach(function (n) { n.textContent = missing ? '+£–' : (st >= 0 ? '+' : '') + C.money(st); });
 
     // totals
-    // With van wear on, each total shows its wear part small, in brackets.
+    // Totals are fuel savings. With van wear on, its total shows beside each, small, in brackets.
     var w = null;
     if (s.includeWear) {
-      var f = C.totals(state.entries, today, false, p);
+      var f = C.totals(state.entries, today, true, p);
       w = {};
-      ['today', 'week', 'month', 'year', 'all'].forEach(function (k) { w[k] = C.round2(t[k] - f[k]); });
+      ['today', 'week', 'month', 'year', 'all'].forEach(function (k) { w[k] = C.round2(f[k] - t[k]); });
     }
     function showTotal(id, k) {
       var n = $(id);
@@ -496,8 +496,8 @@
     $('tripsNote').hidden = !(t.tripsAll > 0);
     $('tripsNote').textContent = 'Includes ' + C.money(t.tripsMonth) + ' from trips this ' + (s.monthStart === 'calendar' ? 'month' : 'pay month') +
       ' (' + C.money(t.tripsAll) + ' all time).';
-    $('wearHint').textContent = s.includeWear ? 'Totals include van wear (depreciation, servicing, tyres) at ' + s.wearPence + 'p a mile. The figure in brackets is the van wear part.'
-      : 'Fuel savings only. Van wear can be added in Settings.';
+    $('wearHint').textContent = s.includeWear ? 'Totals are fuel savings. The figure in brackets is van depreciation and wear (servicing, tyres) at ' + s.wearPence + 'p a mile, on top.'
+      : 'Fuel savings only. Van wear can be shown in Settings.';
 
     renderList();
     renderFuel();
@@ -521,7 +521,7 @@
     list.textContent = '';
     var shown = state.entries.slice(0, state.listLimit);
     shown.forEach(function (e) {
-      var v = C.displayValue(e, state.settings.includeWear);
+      var v = C.displayValue(e, false);
       var del = el('button', { type: 'button', class: 'del', 'aria-label': 'Delete ' + (e.label || 'entry') + ' on ' + C.shortDate(e.date) });
       del.innerHTML = DELETE_ICON;
       del.addEventListener('click', function () { removeEntry(e.id); });
@@ -558,7 +558,7 @@
     var p = payPeriod(today);
     var days = p.days;
     var todayIdx = C.dayInPeriod(today, p); // 1-based
-    var cum = C.cumulativeByPeriod(state.entries, p, state.settings.includeWear);
+    var cum = C.cumulativeByPeriod(state.entries, p, false);
     var dateOf = function (i) { var x = C.parseISO(p.start); x.setDate(x.getDate() + i - 1); return x.getDate(); };
     var target = state.settings.target;
     var maxVal = Math.max(target * 1.15, Math.max.apply(null, cum.concat([0])) * 1.1, 1);
@@ -731,7 +731,7 @@
   });
 
   function changeSummary(changes) {
-    var inc = state.settings.includeWear, today = todayISO();
+    var inc = false, today = todayISO();
     var p = payPeriod(today);
     var before = C.totals(state.entries, today, inc, p), after = C.totals(withChanges(state.entries, changes), today, inc, p);
     var text = '';
@@ -747,15 +747,17 @@
     var ids = {};
     changes.forEach(function (c) { ids[c.id] = true; });
     var previous = state.entries.filter(function (e) { return ids[e.id]; }).map(function (e) { return Object.assign({}, e); });
-    var before = C.totals(state.entries, todayISO(), state.settings.includeWear).all;
+    var before = C.totals(state.entries, todayISO(), false).all, beforeW = C.totals(state.entries, todayISO(), true).all - before;
     state.entries = withChanges(state.entries, changes);
     var updated = state.entries.filter(function (e) { return ids[e.id]; });
     store.put('entries', updated).catch(saveFailed);
     render();
-    var diff = C.round2(C.totals(state.entries, todayISO(), state.settings.includeWear).all - before);
-    var wearOnly = !state.settings.includeWear && changes.every(function (c) { return c.mpg == null; });
-    toast('Updated ' + changes.length + (changes.length === 1 ? ' day' : ' days') +
-      (wearOnly ? '. Van wear is off in totals.' : ' (' + (diff >= 0 ? '+' : '') + C.money(diff) + ')'), function () {
+    var afterF = C.totals(state.entries, todayISO(), false).all;
+    var diff = C.round2(afterF - before), diffW = C.round2(C.totals(state.entries, todayISO(), true).all - afterF - beforeW);
+    var bits = [];
+    if (diff) bits.push((diff >= 0 ? '+' : '') + C.money(diff));
+    if (diffW) bits.push((diffW >= 0 ? '+' : '') + C.money(diffW) + ' wear');
+    toast('Updated ' + changes.length + (changes.length === 1 ? ' day' : ' days') + (bits.length ? ' (' + bits.join(', ') + ')' : ''), function () {
       var back = {};
       previous.forEach(function (e) { back[e.id] = e; });
       state.entries = state.entries.map(function (e) { return back[e.id] || e; });
@@ -779,7 +781,7 @@
     var wearOnly = changes.every(function (c) { return c.mpg == null; });
     $('setRecalcText').textContent = 'Use ' + what.join(' and ') + ' for the ' + n + ' worked out with the old figure? ' +
       changeSummary(changes) + (wearOnly ? '' : 'Days from your fuel log and the fares you paid stay as they are. ') +
-      (changes.some(function (c) { return c.wear != null; }) && !state.settings.includeWear ? 'Van wear only shows in your totals when Include van wear is on.' : '');
+      (changes.some(function (c) { return c.wear != null; }) && !state.settings.includeWear ? 'Van wear only shows when Show van wear is on in Settings.' : '');
     $('setRecalcGo').textContent = 'Update ' + n;
     $('setRecalc').hidden = false;
     return true;

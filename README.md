@@ -34,9 +34,10 @@ turn on Google Drive sync.
 
 Each entry stores its fuel saving and wear saving, worked out with the settings
 at the moment you logged it. Changing a setting later never rewrites old days.
-The figure shown is the fuel saving plus the wear saving ("Include van wear
-in totals", on by default from v1.20.0). Each total then shows its van wear
-part small, in brackets: £30.14 (£16.04) means £16.04 of it is wear.
+Totals, the chart, the target and the log show the fuel saving. With "Show
+van wear in brackets beside totals" on (the default from v1.20.0), each total
+also shows the van wear for the same days, small and in brackets, on top of
+it: £14.10 (£16.04) means £14.10 fuel saved plus £16.04 of van wear.
 
 **Van wear** is 20p a mile: about 9p depreciation plus 11p servicing, tyres,
 brakes and age related wear, for a £10k 2012 Vellfire doing 10,000 to 12,000
@@ -404,7 +405,7 @@ a few weeks. Taking a backup now and then is a good habit.
 * **Log a day**: the date defaults to today. Change it to back-fill an earlier
   day, then tap the button for how you got to the station. Each button shows
   what it will add.
-* **Got a lift**: saves the whole drive (fuel, plus wear if switched on), no
+* **Got a lift**: saves the whole drive (fuel, with wear in brackets), no
   fare. Doesn't count as a train day.
 * **No commute**: for holidays, sick days or working from home. Saves
   nothing, but like a weekend it never breaks your exercise streak.
