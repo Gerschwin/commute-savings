@@ -1007,7 +1007,7 @@
     $('exMotivator').textContent = motivator(t, s);
     var streak = C.carFreeStreak(state.entries, todayISO());
     $('exStreak').hidden = streak < 2;
-    $('exStreak').textContent = streak + ' car free days';
+    $('exStreak').textContent = '🔥 ' + streak + ' car free days';
     $('exStreak').title = 'Weekdays in a row you didn\'t drive. Weekends and No commute days never break it.';
 
     var ul = $('exList');

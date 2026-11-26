@@ -212,10 +212,9 @@ on those days. It isn't a general fitness tracker, so there's no box for other
 walks, runs or rides (any added in older versions stay saved but don't count).
 
 The card shows this month's miles walked and cycled, steps, calories, a
-monthly active miles goal, a car free streak (weekdays in a row you logged a
+monthly active miles goal, and a changing line of encouragement. The car free streak badge sits at the top beside the train days (weekdays in a row you logged a
 day you didn't drive; weekends and No commute days never break it, a blank
-weekday counts as a day you drove and does),
-and a changing line of encouragement.
+weekday counts as a day you drove and does).
 
 Add your **weight** (st & lb, kg or lb) and **height** (e.g. 5'10 or 178) in
 Settings for calories and steps. They stay on your phone.
