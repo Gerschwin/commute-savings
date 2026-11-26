@@ -689,7 +689,10 @@
     return entries.map(function (e) {
       var c = by[e.id];
       if (!c) return e;
-      return Object.assign({}, e, { fuel: c.fuel, mpg: c.mpg, price: c.price, fare: c.fare != null ? c.fare : e.fare, recalc: Date.now() });
+      var o = { fuel: c.fuel, recalc: Date.now() };
+      if (c.mpg != null) { o.mpg = c.mpg; o.price = c.price; o.fare = c.fare != null ? c.fare : e.fare; }
+      if (c.wear != null) o.wear = c.wear;
+      return Object.assign({}, e, o);
     });
   }
 
@@ -737,7 +740,9 @@
     store.put('entries', updated).catch(saveFailed);
     render();
     var diff = C.round2(C.totals(state.entries, todayISO(), state.settings.includeWear).all - before);
-    toast('Updated ' + changes.length + (changes.length === 1 ? ' day' : ' days') + ' (' + (diff >= 0 ? '+' : '') + C.money(diff) + ')', function () {
+    var wearOnly = !state.settings.includeWear && changes.every(function (c) { return c.mpg == null; });
+    toast('Updated ' + changes.length + (changes.length === 1 ? ' day' : ' days') +
+      (wearOnly ? '. Van wear is off in totals.' : ' (' + (diff >= 0 ? '+' : '') + C.money(diff) + ')'), function () {
       var back = {};
       previous.forEach(function (e) { back[e.id] = e; });
       state.entries = state.entries.map(function (e) { return back[e.id] || e; });
@@ -747,7 +752,7 @@
     });
   }
 
-  /* Offer to apply a new Settings mpg or petrol price to past days. */
+  /* Offer to apply a new Settings mpg, petrol price or van wear to past days. */
   var pendingSet = null;
   function offerSettingsRecalc(oldS, newS) {
     var changes = C.recalcFromSettings(state.entries, oldS, newS);
@@ -756,9 +761,12 @@
     var what = [];
     if (Math.abs(oldS.mpg - newS.mpg) >= 0.05) what.push(oldS.mpg + ' to ' + newS.mpg + ' mpg');
     if (Math.abs(oldS.price - newS.price) >= 0.0005) what.push(C.money(oldS.price) + ' to ' + C.money(newS.price) + ' a litre');
+    if (Math.abs(oldS.wearPence - newS.wearPence) >= 0.005) what.push(oldS.wearPence + 'p to ' + newS.wearPence + 'p a mile van wear');
     var n = changes.length + (changes.length === 1 ? ' past day' : ' past days');
+    var wearOnly = changes.every(function (c) { return c.mpg == null; });
     $('setRecalcText').textContent = 'Use ' + what.join(' and ') + ' for the ' + n + ' worked out with the old figure? ' +
-      changeSummary(changes) + 'Days from your fuel log and the fares you paid stay as they are.';
+      changeSummary(changes) + (wearOnly ? '' : 'Days from your fuel log and the fares you paid stay as they are. ') +
+      (changes.some(function (c) { return c.wear != null; }) && !state.settings.includeWear ? 'Van wear only shows in your totals when Include van wear is on.' : '');
     $('setRecalcGo').textContent = 'Update ' + n;
     $('setRecalc').hidden = false;
     return true;
@@ -1740,6 +1748,19 @@
 
   /* ================= boot ================= */
   resetDate();
+  /* One time, Nov 2026: van wear went from a 10p guess to 20p a mile
+     (about 9p depreciation + 11p servicing, tyres and brakes). A phone still
+     on the old 10p default moves to 20p and is offered the past days. */
+  function wearTo20() {
+    var KEY = 'cs.wear20';
+    try { if (localStorage.getItem(KEY)) return; localStorage.setItem(KEY, '1'); } catch (e) { return; }
+    if (Number(state.settings.wearPence) !== 10) return;
+    var oldS = state.settings;
+    state.settings = Object.assign({}, oldS, { wearPence: 20 });
+    store.saveSettings(state.settings).catch(saveFailed);
+    setTimeout(function () { offerSettingsRecalc(oldS, state.settings); }, 0);
+  }
+
   store.init()
     .then(function () { return Promise.all([store.load('entries'), store.loadSettings(), store.load('fills'), store.load('exercise')]); })
     .then(function (res) {
@@ -1751,6 +1772,7 @@
         if (v.ok) state.settings = v.settings;
       }
       sortEntries();
+      wearTo20();
       recalcStats();
       $('storageNote').textContent = store.mode() === 'idb' ? '' : 'Saving in basic browser storage (IndexedDB is unavailable here).';
       render();

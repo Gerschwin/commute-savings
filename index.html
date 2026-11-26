@@ -275,7 +275,7 @@
         <h2 id="settingsTitle">Settings</h2>
         <button type="button" class="btn ghost small" id="closeSettings">Close</button>
       </div>
-      <p class="hint">Changes apply to new entries only. Days already logged keep the figures they were saved with. Petrol price and mpg here are only used until your fuel log has real figures (or if you switch that off).</p>
+      <p class="hint">Days already logged keep the figures they were saved with, but changing mpg, petrol price or van wear offers to update them. Petrol price and mpg here are only used until your fuel log has real figures (or if you switch that off). Van wear is depreciation plus servicing, tyres and brakes: 20p a mile (about 9p + 11p) suits a 2012 Vellfire, with 18p to 24p a fair range.</p>
       <form id="settingsForm" novalidate>
         <div class="settings-grid">
           <label class="field"><span>Petrol price (£ per litre)</span><input name="price" inputmode="decimal" data-money autocomplete="off"><em class="error" data-err="price"></em></label>
@@ -304,7 +304,7 @@
             </div>
           </fieldset>
           <label class="field"><span>Work single, full (£)</span><input name="single" inputmode="decimal" data-money autocomplete="off"><em class="error" data-err="single"></em></label>
-          <label class="field"><span>Van wear (pence per mile)</span><input name="wearPence" inputmode="decimal" autocomplete="off"><em class="error" data-err="wearPence"></em></label>
+          <label class="field"><span>Van wear (pence per mile)</span><input name="wearPence" inputmode="decimal" autocomplete="off" placeholder="20"><em class="error" data-err="wearPence"></em></label>
           <label class="field"><span>Monthly target (£)</span><input name="target" inputmode="decimal" data-money autocomplete="off"><em class="error" data-err="target"></em></label>
           <fieldset class="discount span-all trips-set">
             <legend>Journeys</legend>

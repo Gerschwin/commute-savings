@@ -21,7 +21,7 @@
     single: 5.5,        // Anytime Day Single, Airdrie–Glasgow Queen Street (Nov 2026)
     stationMiles: 3.6,  // drive-to-station round trip
     stationMpg: 15,     // mpg on short cold station runs
-    wearPence: 10,      // van wear pence per mile
+    wearPence: 20,      // van depreciation + wear pence per mile (about 9p + 11p for a 2012 Vellfire)
     target: 90,         // monthly target £
     includeWear: false,
     useFills: true,     // use real mpg and price from the fuel log when there is enough data
@@ -438,30 +438,44 @@
     return changes;
   }
 
-  /* After mpg or petrol price is changed in Settings: rework the past train
-     days that were worked out with the old Settings figure (stored mpg/price
-     equal to the old one, or not stored). Days that used fuel-log figures
-     are left alone. The fare paid is kept. */
+  /* After mpg, petrol price or van wear is changed in Settings: rework the
+     past days that were worked out with the old Settings figure (stored
+     mpg/price equal to the old one, or not stored; wear equal to what the old
+     pence a mile gives). Days that used fuel-log figures keep their fuel
+     saving. The fare paid is kept. */
   function recalcFromSettings(entries, oldS, newS) {
     var mpgChanged = Math.abs(oldS.mpg - newS.mpg) >= 0.05;
     var priceChanged = Math.abs(oldS.price - newS.price) >= 0.0005;
-    if (!mpgChanged && !priceChanged) return [];
+    var wearChanged = Math.abs(oldS.wearPence - newS.wearPence) >= 0.005;
+    if (!mpgChanged && !priceChanged && !wearChanged) return [];
     var changes = [];
     entries.forEach(function (e) {
       if (e.type !== 'train' && e.type !== 'station' && e.type !== 'lift') return;
+      var miles = e.miles > 0 ? { commuteMiles: e.miles } : {};
       var mpg = e.mpg > 0 ? e.mpg : oldS.mpg;
       var price = e.price > 0 ? e.price : oldS.price;
       var usedMpg = mpgChanged && Math.abs(mpg - oldS.mpg) < 0.05;
       var usedPrice = priceChanged && Math.abs(price - oldS.price) < 0.0005;
-      if (!usedMpg && !usedPrice) return;
-      if (usedMpg) mpg = newS.mpg;
-      if (usedPrice) price = newS.price;
-      var fare = e.type === 'lift' ? 0 : e.fare != null && isFinite(e.fare) ? e.fare : usualFare(newS, e.date).fare;
-      var fuel = round2(trainSaving(e.type, Object.assign({}, newS, { mpg: mpg, price: price, fare: fare }, e.miles > 0 ? { commuteMiles: e.miles } : {})).fuel);
-      if (Math.abs(fuel - (e.fuel || 0)) >= 0.005) {
-        changes.push({ id: e.id, date: e.date, oldFuel: e.fuel || 0, fuel: fuel,
-          mpg: Math.round(mpg * 10) / 10, price: Math.round(price * 1000) / 1000, fare: e.type === 'lift' ? null : round2(fare) });
+      var oldWear = e.wear || 0, wear = oldWear;
+      if (wearChanged && Math.abs(round2(trainSaving(e.type, Object.assign({}, oldS, miles)).wear) - oldWear) < 0.005) {
+        wear = round2(trainSaving(e.type, Object.assign({}, newS, miles)).wear);
       }
+      var fuel = e.fuel || 0;
+      var fare = e.type === 'lift' ? 0 : e.fare != null && isFinite(e.fare) ? e.fare : usualFare(newS, e.date).fare;
+      if (usedMpg || usedPrice) {
+        if (usedMpg) mpg = newS.mpg;
+        if (usedPrice) price = newS.price;
+        fuel = round2(trainSaving(e.type, Object.assign({}, newS, { mpg: mpg, price: price, fare: fare }, miles)).fuel);
+      }
+      var fuelMoved = Math.abs(fuel - (e.fuel || 0)) >= 0.005, wearMoved = Math.abs(wear - oldWear) >= 0.005;
+      if (!fuelMoved && !wearMoved) return;
+      var c = { id: e.id, date: e.date, oldFuel: e.fuel || 0, fuel: fuel };
+      if (fuelMoved) {
+        c.mpg = Math.round(mpg * 10) / 10; c.price = Math.round(price * 1000) / 1000;
+        c.fare = e.type === 'lift' ? null : round2(fare);
+      }
+      if (wearMoved) { c.oldWear = oldWear; c.wear = wear; }
+      changes.push(c);
     });
     return changes;
   }

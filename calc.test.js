@@ -22,7 +22,7 @@ test('driving the commute costs £11.17', () => {
 test('walked or cycled day saves £5.67 fuel', () => {
   const s = C.entrySaving('train', D);
   assert.strictEqual(s.fuel, 5.67);
-  assert.strictEqual(s.wear, 3.40);
+  assert.strictEqual(s.wear, 6.80);
 });
 
 test('station run fuel is £1.73', () => {
@@ -34,7 +34,7 @@ test('station run fuel is £1.73', () => {
 test('drove-to-station day saves £3.94 fuel', () => {
   const s = C.entrySaving('station', D);
   assert.strictEqual(s.fuel, 3.94);
-  assert.strictEqual(s.wear, 3.04);
+  assert.strictEqual(s.wear, 6.08);
 });
 
 test('display value adds wear only when toggled on', () => {
@@ -388,7 +388,7 @@ test('got a lift saves the whole drive; no commute saves nothing', () => {
   const lift = C.entrySaving('lift', C.DEFAULTS);
   // 34 × 1.59 × 4.546 / 22 = 11.17
   assert.strictEqual(lift.fuel, 11.17);
-  assert.strictEqual(lift.wear, 3.4);
+  assert.strictEqual(lift.wear, 6.8);
   assert.deepStrictEqual(C.entrySaving('off', C.DEFAULTS), { fuel: 0, wear: 0 });
 });
 
@@ -476,8 +476,8 @@ test('Milngavie trip: 46.2 miles driving, £6.80 BB1 return', () => {
   assert.strictEqual(s.fare, 6.8);
   assert.strictEqual(s.fareCode, 'BB1');
   assert.strictEqual(C.round2(C.drivingCost(s)), 15.18);
-  assert.deepStrictEqual(C.entrySaving('train', s), { fuel: 8.38, wear: 4.62 });
-  assert.deepStrictEqual(C.entrySaving('lift', s), { fuel: 15.18, wear: 4.62 });
+  assert.deepStrictEqual(C.entrySaving('train', s), { fuel: 8.38, wear: 9.24 });
+  assert.deepStrictEqual(C.entrySaving('lift', s), { fuel: 15.18, wear: 9.24 });
 });
 
 test('no trip picked leaves the usual commute', () => {
@@ -542,6 +542,30 @@ test('trip days count separately and not as train days', () => {
     { date: '2026-11-21', type: 'train', fuel: 9.78, wear: 0, trip: true, route: 'Edinburgh' }
   ], '2026-11-23', false, p);
   assert.deepStrictEqual([t.month, t.tripsMonth, t.tripsAll, t.trainDaysMonth], [14.78, 9.78, 9.78, 1]);
+});
+
+test('van wear defaults to 20p a mile', () => {
+  assert.strictEqual(C.DEFAULTS.wearPence, 20);
+  assert.strictEqual(C.entrySaving('train', C.DEFAULTS).wear, 6.80);
+});
+
+test('changing Settings van wear updates days on the old figure only', () => {
+  const S = Object.assign({}, C.DEFAULTS, { wearPence: 10 });
+  const N = Object.assign({}, S, { wearPence: 20 });
+  const ch = C.recalcFromSettings([
+    { id: 'a', date: '2026-11-03', type: 'train', fuel: 5.72, wear: 3.40, mpg: 19.4, price: 1.52 }, // fuel log day: wear moves, fuel kept
+    { id: 'b', date: '2026-11-04', type: 'station', fuel: 3.99, wear: 3.04 },
+    { id: 'm', date: '2026-11-05', type: 'train', fuel: 8.38, wear: 4.62, miles: 46.2 },          // Milngavie
+    { id: 'c', date: '2026-11-06', type: 'train', fuel: 5.72, wear: 5.00 },                      // made with another figure
+    { id: 'o', date: '2026-11-07', type: 'off', fuel: 0, wear: 0 }
+  ], S, N);
+  const by = Object.fromEntries(ch.map(c => [c.id, c]));
+  assert.deepStrictEqual(Object.keys(by).sort(), ['a', 'b', 'm']);
+  assert.strictEqual(by.a.wear, 6.80);
+  assert.strictEqual(by.a.fuel, 5.72);
+  assert.strictEqual(by.a.mpg, undefined);
+  assert.strictEqual(by.b.wear, 6.08);
+  assert.strictEqual(by.m.wear, 9.24);
 });
 
 console.log('\n' + passed + ' passed' + (process.exitCode ? ', some FAILED' : ''));

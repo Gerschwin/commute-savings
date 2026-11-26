@@ -37,10 +37,18 @@ at the moment you logged it. Changing a setting later never rewrites old days.
 The figure shown is the fuel saving, plus the wear saving if "Include van wear
 in totals" is switched on.
 
+**Van wear** is 20p a mile: about 9p depreciation plus 11p servicing, tyres,
+brakes and age related wear, for a £10k 2012 Vellfire doing 10,000 to 12,000
+miles a year. 18p to 24p is a fair range (roughly £2,000 to £2,650 a year at
+11,000 miles). It was a 10p guess before v1.19.0; a phone still on 10p moves
+to 20p once and is offered the past days. Changing mpg, petrol price or van
+wear in Settings offers to update the past days worked out with the old
+figure, with Undo.
+
 With the brief's original figures (22 mpg, £1.59 a litre, £5.50 fare):
 
-* Walked or cycled: £5.67 fuel saving (plus £3.40 wear)
-* Drove to station: £3.94 fuel saving (plus £3.04 wear)
+* Walked or cycled: £5.67 fuel saving (plus £6.80 wear)
+* Drove to station: £3.94 fuel saving (plus £6.08 wear)
 
 Real ScotRail fares (Nov 2026): the Anytime Day Return is £5.45 with the
 **BB1 discount code**, which gives £5.72 and £3.99. Without the code the
@@ -91,7 +99,7 @@ day you log.
   "Trip: Edinburgh (80 mi)" for others.
 
 With the Settings figures (22 mpg, £1.59 a litre): Milngavie by train saves
-£8.38 (plus £4.62 wear); Edinburgh, 80 miles with a £16.50 ticket, saves
+£8.38 (plus £9.24 wear); Edinburgh, 80 miles with a £16.50 ticket, saves
 £9.78.
 
 Settings from v1.14 (the old single "Second route") become a saved trip by
