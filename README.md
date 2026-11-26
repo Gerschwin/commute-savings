@@ -39,6 +39,10 @@ van wear in brackets beside totals" on (the default from v1.20.0), each total
 also shows the van wear for the same days, small and in brackets, on top of
 it: £14.10 (£16.04) means £14.10 fuel saved plus £16.04 of van wear.
 
+**Miles not driven** shows beside the month total at the top and under each
+running total: the whole drive for a train day or a lift (a trip's own
+miles), less the station run on a drove-to-station day.
+
 **Van wear** is 20p a mile: about 9p depreciation plus 11p servicing, tyres,
 brakes and age related wear, for a £10k 2012 Vellfire doing 10,000 to 12,000
 miles a year. 18p to 24p is a fair range (roughly £2,000 to £2,650 a year at

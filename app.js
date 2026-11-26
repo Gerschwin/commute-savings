@@ -426,6 +426,12 @@
       : dm(p.start) + ' to ' + dm(p.end);
     $('heroLabel').textContent = s.monthStart === 'calendar' ? 'saved this month' : 'saved this pay month';
     $('heroDays').textContent = t.trainDaysMonth + (t.trainDaysMonth === 1 ? ' train day' : ' train days');
+    var mt = C.milesTotals(state.entries, today, s, p);
+    var miStr = function (m) { return (m >= 100 ? Math.round(m).toLocaleString('en-GB') : String(m)) + (m === 1 ? ' mile' : ' miles'); };
+    $('heroMiles').textContent = miStr(mt.month) + ' not driven';
+    [['mToday', 'today'], ['mWeek', 'week'], ['mMonth', 'month'], ['mYear', 'year'], ['mAll', 'all']].forEach(function (x) {
+      $(x[0]).textContent = mt[x[1]] ? miStr(mt[x[1]]) + ' not driven' : '';
+    });
 
     var pct = s.target > 0 ? Math.max(0, Math.min(100, t.month / s.target * 100)) : 0;
     $('progressFill').style.width = pct + '%';

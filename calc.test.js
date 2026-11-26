@@ -569,4 +569,20 @@ test('changing Settings van wear updates days on the old figure only', () => {
   assert.strictEqual(by.m.wear, 9.24);
 });
 
+test('miles not driven', () => {
+  const S = C.DEFAULTS;
+  const es = [
+    { date: '2026-11-23', type: 'train', fuel: 3 },
+    { date: '2026-11-24', type: 'station', fuel: 1 },
+    { date: '2026-11-25', type: 'train', fuel: 8, miles: 46.2, route: 'milngavie' },
+    { date: '2026-11-26', type: 'lift', fuel: 8 },
+    { date: '2026-11-26', type: 'off', fuel: 0 },
+    { date: '2026-10-01', type: 'custom', fuel: 2 }
+  ];
+  const m = C.milesTotals(es, '2026-11-26', S);
+  assert.strictEqual(m.today, 34);
+  assert.strictEqual(m.month, 144.6);
+  assert.strictEqual(m.all, m.month);
+});
+
 console.log('\n' + passed + ' passed' + (process.exitCode ? ', some FAILED' : ''));

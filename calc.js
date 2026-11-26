@@ -187,6 +187,35 @@
     return t;
   }
 
+  /* Driving miles not done on a day: the whole drive for a train day or a
+     lift (the trip's own miles if it has them), less the station run when you
+     drove to the station. No commute and other entries: none. */
+  function entryMiles(e, settings) {
+    if (e.type !== 'train' && e.type !== 'station' && e.type !== 'lift') return 0;
+    var m = e.miles > 0 ? Number(e.miles) : Number(settings.commuteMiles) || 0;
+    if (e.type === 'station') m -= Number(settings.stationMiles) || 0;
+    return Math.max(0, m);
+  }
+
+  /* Miles not driven for today, this week, month (or pay month), year and all time. */
+  function milesTotals(entries, todayISO, settings, period) {
+    var t = { today: 0, week: 0, month: 0, year: 0, all: 0 };
+    var weekStart = mondayOf(todayISO);
+    var p = period || calendarPeriod(todayISO);
+    var year = todayISO.slice(0, 4);
+    entries.forEach(function (e) {
+      var m = entryMiles(e, settings);
+      if (!m) return;
+      t.all += m;
+      if (e.date.slice(0, 4) === year) t.year += m;
+      if (e.date >= p.start && e.date <= p.end) t.month += m;
+      if (e.date >= weekStart && e.date <= todayISO) t.week += m;
+      if (e.date === todayISO) t.today += m;
+    });
+    Object.keys(t).forEach(function (k) { t[k] = Math.round(t[k] * 10) / 10; });
+    return t;
+  }
+
   /* Cumulative savings per day of a period: array of length period.days. */
   function cumulativeByPeriod(entries, p, includeWear) {
     var daily = new Array(p.days).fill(0);
@@ -778,6 +807,8 @@
     mondayOf: mondayOf,
     daysInMonth: daysInMonth,
     totals: totals,
+    entryMiles: entryMiles,
+    milesTotals: milesTotals,
     cumulativeByDay: cumulativeByDay,
     cumulativeByPeriod: cumulativeByPeriod,
     payday: payday,

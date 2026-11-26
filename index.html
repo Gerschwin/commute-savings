@@ -44,7 +44,7 @@
         </span>
       </div>
       <p class="hero-figure"><span id="heroAmount">£0.00</span></p>
-      <p class="hero-sub"><span id="heroLabel">saved this month</span> · <strong id="heroDays">0 train days</strong></p>
+      <p class="hero-sub"><span id="heroLabel">saved this month</span> · <strong id="heroDays">0 train days</strong> · <span id="heroMiles">0 miles not driven</span></p>
       <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress">
         <div class="progress-fill" id="progressFill"></div>
       </div>
@@ -184,11 +184,11 @@
     <section class="card" aria-labelledby="totalsTitle">
       <h2 id="totalsTitle">Running totals</h2>
       <dl class="totals">
-        <div><dt>Today</dt><dd id="tToday">£0.00</dd></div>
-        <div><dt>This week</dt><dd id="tWeek">£0.00</dd></div>
-        <div><dt id="tMonthLabel">This month</dt><dd id="tMonth">£0.00</dd></div>
-        <div><dt>This year</dt><dd id="tYear">£0.00</dd></div>
-        <div class="span2"><dt>All time</dt><dd id="tAll">£0.00</dd></div>
+        <div><dt>Today</dt><dd id="tToday">£0.00</dd><p class="tot-miles" id="mToday"></p></div>
+        <div><dt>This week</dt><dd id="tWeek">£0.00</dd><p class="tot-miles" id="mWeek"></p></div>
+        <div><dt id="tMonthLabel">This month</dt><dd id="tMonth">£0.00</dd><p class="tot-miles" id="mMonth"></p></div>
+        <div><dt>This year</dt><dd id="tYear">£0.00</dd><p class="tot-miles" id="mYear"></p></div>
+        <div class="span2"><dt>All time</dt><dd id="tAll">£0.00</dd><p class="tot-miles" id="mAll"></p></div>
       </dl>
       <p class="hint" id="tripsNote" hidden></p>
       <p class="hint" id="wearHint"></p>

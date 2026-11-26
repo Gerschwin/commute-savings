@@ -114,6 +114,7 @@ input { font-size: 16px; }
 .wear-part { font-size: .42em; font-weight: 700; opacity: .75; letter-spacing: 0; white-space: nowrap; }
 .hero-figure .wear-part { font-size: .3em; }
 .hero-sub strong { font-weight: 700; }
+#heroMiles { white-space: nowrap; }
 
 .progress { height: 14px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
 .progress-fill { height: 100%; width: 0; background: var(--accent); border-radius: 99px; transition: width .4s ease; }
@@ -210,6 +211,7 @@ input { font-size: 16px; }
 .totals { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0; }
 .totals > div { background: var(--bg); border-radius: 14px; padding: 12px 14px; }
 .totals .span2 { grid-column: span 2; }
+.totals .tot-miles { margin: 4px 0 0; font-size: .8rem; color: var(--muted); }
 .totals dt { font-size: .85rem; font-weight: 600; color: var(--muted); }
 .totals dd {
   margin: 2px 0 0; font-family: var(--font-num); font-weight: 800;
