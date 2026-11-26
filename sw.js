@@ -1,7 +1,7 @@
 /* Commute Savings service worker.
    Changed files reach phones on their own (one app open later). Bump VERSION
    when you add or rename files, so the old cache is cleared out. */
-var VERSION = 'v1.23.0';
+var VERSION = 'v1.23.1';
 var SHELL = 'cs-shell-' + VERSION;
 var FONTS = 'cs-fonts-v1';
 

@@ -504,7 +504,7 @@
     }
     showTotal('heroAmount', 'month');
     // All time line under the target.
-    var allBits = [C.money(t.all) + ' saved' + (w && w.all ? ' (' + C.money(w.all) + ' wear)' : '')];
+    var allBits = [C.money(t.all) + ' saved' + (w && w.all ? ' (' + C.money(w.all) + ')' : '')];
     if (mt.all) allBits.push(miStr(mt.all) + ' not driven');
     if (wt.all) allBits.push(miStr(wt.all) + ' walked');
     $('heroAll').textContent = '';
